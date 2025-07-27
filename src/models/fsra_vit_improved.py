@@ -371,6 +371,17 @@ class FSRAViTImproved(nn.Module):
             regional_feats.append(regional_f)
         
         # Feature fusion for final prediction
+        # Debug: Check tensor shapes before concatenation
+        if global_f.shape[0] != regional_feats[0].shape[0]:
+            print(f"WARNING: Batch size mismatch!")
+            print(f"  global_f shape: {global_f.shape}")
+            for i, rf in enumerate(regional_feats):
+                print(f"  regional_feats[{i}] shape: {rf.shape}")
+            # Fix batch size mismatch by taking minimum
+            min_batch_size = min(global_f.shape[0], min(rf.shape[0] for rf in regional_feats))
+            global_f = global_f[:min_batch_size]
+            regional_feats = [rf[:min_batch_size] for rf in regional_feats]
+
         all_features = torch.cat([global_f] + regional_feats, dim=1)  # (B, final_fusion_dim)
         fused_features_final = self.feature_fusion(all_features)  # (B, fusion_dim)
         
