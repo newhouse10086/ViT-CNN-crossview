@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""Complete server-side fix for all issues."""
+
+import os
+import shutil
+from pathlib import Path
+
+def fix_utils_init():
+    """Fix src/utils/__init__.py"""
+    content = '''"""Utilities for ViT-CNN-crossview."""
+
+from .metrics import MetricsCalculator, AverageMeter, RankingMetricsCalculator
+from .visualization import TrainingVisualizer, plot_training_curves, plot_confusion_matrix, plot_roc_curves
+from .logger import setup_logger, get_logger, log_system_info
+from .config_utils import load_config, save_config, merge_configs, validate_config
+
+__all__ = [
+    'MetricsCalculator',
+    'AverageMeter',
+    'RankingMetricsCalculator',
+    'TrainingVisualizer',
+    'plot_training_curves',
+    'plot_confusion_matrix',
+    'plot_roc_curves',
+    'setup_logger',
+    'get_logger',
+    'log_system_info',
+    'load_config',
+    'save_config',
+    'merge_configs',
+    'validate_config'
+]'''
+    
+    with open('src/utils/__init__.py', 'w') as f:
+        f.write(content)
+    print("✓ Fixed src/utils/__init__.py")
+
+def fix_optimizers_init():
+    """Fix src/optimizers/__init__.py"""
+    content = '''"""Optimizers for ViT-CNN-crossview."""
+
+from .optimizer_factory import create_optimizer, create_scheduler, create_optimizer_with_config
+from .lr_schedulers import WarmupCosineScheduler, WarmupLinearScheduler
+
+__all__ = [
+    'create_optimizer',
+    'create_scheduler',
+    'create_optimizer_with_config',
+    'WarmupCosineScheduler',
+    'WarmupLinearScheduler'
+]'''
+    
+    with open('src/optimizers/__init__.py', 'w') as f:
+        f.write(content)
+    print("✓ Fixed src/optimizers/__init__.py")
+
+def fix_vit_pytorch():
+    """Fix patch_size conflict in vit_pytorch.py"""
+    vit_file = 'src/models/backbones/vit_pytorch.py'
+    
+    if not os.path.exists(vit_file):
+        print(f"Warning: {vit_file} not found")
+        return
+    
+    with open(vit_file, 'r') as f:
+        content = f.read()
+    
+    # Fix the vit_small_patch16_224 function
+    old_code = '''    model = VisionTransformer(
+        patch_size=16, embed_dim=384, depth=12, num_heads=6, mlp_ratio=4,
+        qkv_bias=True, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)'''
+    
+    new_code = '''    # Set default values, but allow kwargs to override
+    default_kwargs = {
+        'patch_size': 16,
+        'embed_dim': 384,
+        'depth': 12,
+        'num_heads': 6,
+        'mlp_ratio': 4,
+        'qkv_bias': True,
+        'norm_layer': partial(nn.LayerNorm, eps=1e-6)
+    }
+    
+    # Update defaults with provided kwargs
+    default_kwargs.update(kwargs)
+    
+    model = VisionTransformer(**default_kwargs)'''
+    
+    if old_code in content:
+        content = content.replace(old_code, new_code)
+        with open(vit_file, 'w') as f:
+            f.write(content)
+        print("✓ Fixed patch_size conflict in vit_pytorch.py")
+    else:
+        print("⚠ vit_pytorch.py patch_size fix not needed or already applied")
+
+def test_imports():
+    """Test if imports work after fixes"""
+    import sys
+    sys.path.insert(0, 'src')
+    
+    # Test critical imports
+    critical_imports = [
+        ("src.utils", "RankingMetricsCalculator"),
+        ("src.utils", "plot_roc_curves"),
+        ("src.utils", "log_system_info"),
+        ("src.utils", "validate_config"),
+        ("src.optimizers", "create_optimizer_with_config"),
+    ]
+    
+    all_good = True
+    
+    for module, item in critical_imports:
+        try:
+            exec(f"from {module} import {item}")
+            print(f"✓ {item}")
+        except Exception as e:
+            print(f"✗ {item}: {e}")
+            all_good = False
+    
+    return all_good
+
+def test_model_creation():
+    """Test model creation"""
+    import sys
+    sys.path.insert(0, 'src')
+    
+    try:
+        from src.models import create_model
+        
+        config = {
+            'model': {
+                'name': 'ViTCNN',
+                'num_classes': 10,
+                'use_pretrained_resnet': False,
+                'use_pretrained_vit': False
+            },
+            'data': {'views': 2}
+        }
+        
+        model = create_model(config)
+        print("✓ Model creation successful")
+        return True
+        
+    except Exception as e:
+        print(f"✗ Model creation failed: {e}")
+        return False
+
+def main():
+    """Main fix function"""
+    print("=" * 60)
+    print("Complete ViT-CNN-crossview Server Fix")
+    print("=" * 60)
+    
+    # Check if we're in the right directory
+    if not Path("src").exists():
+        print("Error: Please run this script from the ViT-CNN-crossview directory")
+        return 1
+    
+    # Apply all fixes
+    print("Applying fixes...")
+    fix_utils_init()
+    fix_optimizers_init()
+    fix_vit_pytorch()
+    
+    # Test imports
+    print("\nTesting imports...")
+    imports_ok = test_imports()
+    
+    # Test model creation
+    print("\nTesting model creation...")
+    model_ok = test_model_creation()
+    
+    # Final result
+    print("\n" + "=" * 60)
+    if imports_ok and model_ok:
+        print("🎉 ALL FIXES APPLIED SUCCESSFULLY!")
+        print("\nYou can now run:")
+        print("  python train.py --config config/default_config.yaml")
+        print("  python train.py --create-dummy-data --experiment-name test")
+        print("\nThe following issues have been resolved:")
+        print("  ✓ Missing import: RankingMetricsCalculator")
+        print("  ✓ Missing import: create_optimizer_with_config")
+        print("  ✓ Missing import: plot_roc_curves")
+        print("  ✓ Missing import: log_system_info")
+        print("  ✓ Missing import: validate_config")
+        print("  ✓ patch_size conflict in VisionTransformer")
+    else:
+        print("❌ SOME ISSUES REMAIN")
+        if not imports_ok:
+            print("  - Import issues detected")
+        if not model_ok:
+            print("  - Model creation issues detected")
+        return 1
+    
+    print("=" * 60)
+    return 0
+
+if __name__ == "__main__":
+    exit(main())
