@@ -136,6 +136,60 @@ def fix_weights_init():
     else:
         print("⚠ components.py weights init fix not needed or already applied")
 
+def fix_sklearn_compatibility():
+    """Fix sklearn compatibility issues in metrics.py"""
+    metrics_file = 'src/utils/metrics.py'
+
+    if not os.path.exists(metrics_file):
+        print(f"Warning: {metrics_file} not found")
+        return
+
+    with open(metrics_file, 'r') as f:
+        content = f.read()
+
+    # Fix sklearn imports
+    old_import = '''from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    roc_auc_score, confusion_matrix, classification_report,
+    average_precision_score, top_k_accuracy_score
+)'''
+
+    new_import = '''from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    roc_auc_score, confusion_matrix, classification_report,
+    average_precision_score
+)
+
+# Try to import top_k_accuracy_score, fallback if not available
+try:
+    from sklearn.metrics import top_k_accuracy_score
+    HAS_TOP_K_ACCURACY = True
+except ImportError:
+    HAS_TOP_K_ACCURACY = False
+
+    def top_k_accuracy_score(y_true, y_prob, k=1):
+        """Fallback implementation for top-k accuracy."""
+        if y_prob.ndim == 1:
+            # Binary classification
+            return accuracy_score(y_true, (y_prob > 0.5).astype(int))
+
+        # Multi-class classification
+        top_k_preds = np.argsort(y_prob, axis=1)[:, -k:]
+        correct = np.any(top_k_preds == y_true.reshape(-1, 1), axis=1)
+        return np.mean(correct)'''
+
+    fixed = False
+    if old_import in content:
+        content = content.replace(old_import, new_import)
+        fixed = True
+
+    if fixed:
+        with open(metrics_file, 'w') as f:
+            f.write(content)
+        print("✓ Fixed sklearn compatibility in metrics.py")
+    else:
+        print("⚠ metrics.py sklearn fix not needed or already applied")
+
 def test_imports():
     """Test if imports work after fixes"""
     import sys
@@ -205,6 +259,7 @@ def main():
     fix_optimizers_init()
     fix_vit_pytorch()
     fix_weights_init()
+    fix_sklearn_compatibility()
     
     # Test imports
     print("\nTesting imports...")

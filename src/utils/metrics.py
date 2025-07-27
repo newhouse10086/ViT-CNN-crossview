@@ -5,8 +5,26 @@ import numpy as np
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
     roc_auc_score, confusion_matrix, classification_report,
-    average_precision_score, top_k_accuracy_score
+    average_precision_score
 )
+
+# Try to import top_k_accuracy_score, fallback if not available
+try:
+    from sklearn.metrics import top_k_accuracy_score
+    HAS_TOP_K_ACCURACY = True
+except ImportError:
+    HAS_TOP_K_ACCURACY = False
+
+    def top_k_accuracy_score(y_true, y_prob, k=1):
+        """Fallback implementation for top-k accuracy."""
+        if y_prob.ndim == 1:
+            # Binary classification
+            return accuracy_score(y_true, (y_prob > 0.5).astype(int))
+
+        # Multi-class classification
+        top_k_preds = np.argsort(y_prob, axis=1)[:, -k:]
+        correct = np.any(top_k_preds == y_true.reshape(-1, 1), axis=1)
+        return np.mean(correct)
 from typing import Dict, List, Optional, Tuple, Union
 import logging
 
@@ -162,9 +180,17 @@ class MetricsCalculator:
                         # Top-k accuracy
                         for k in [1, 3, 5]:
                             if k <= self.num_classes:
-                                metrics[f'top_{k}_accuracy'] = top_k_accuracy_score(
-                                    y_true, y_prob, k=k
-                                )
+                                try:
+                                    metrics[f'top_{k}_accuracy'] = top_k_accuracy_score(
+                                        y_true, y_prob, k=k
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"Could not compute top-{k} accuracy: {e}")
+                                    # Fallback for top-1 accuracy
+                                    if k == 1:
+                                        metrics[f'top_{k}_accuracy'] = accuracy_score(
+                                            y_true, np.argmax(y_prob, axis=1)
+                                        )
             except Exception as e:
                 logger.warning(f"Error computing AUC metrics: {e}")
         
