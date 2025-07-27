@@ -111,7 +111,7 @@ innovation:
   architecture:
     input_size: [256, 256]
     patch_size: [10, 10]
-    num_patches: 100                # 25x25 patches -> resize to 8x8 spatial
+    num_patches: 625                # 25x25 patches -> resize to 8x8 spatial
     cnn_spatial_size: [8, 8]       # ResNet18 output spatial size
     fusion_method: "concatenation"
     clustering_method: "community_detection"
