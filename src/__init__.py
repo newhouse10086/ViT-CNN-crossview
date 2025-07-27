@@ -6,6 +6,12 @@ __email__ = "1914906669@qq.com"
 
 # Import modules with error handling
 try:
+    from . import utils
+except ImportError as e:
+    print(f"Warning: Could not import utils: {e}")
+    utils = None
+
+try:
     from . import models
 except ImportError as e:
     print(f"Warning: Could not import models: {e}")
@@ -28,12 +34,6 @@ try:
 except ImportError as e:
     print(f"Warning: Could not import optimizers: {e}")
     optimizers = None
-
-try:
-    from . import utils
-except ImportError as e:
-    print(f"Warning: Could not import utils: {e}")
-    utils = None
 
 try:
     from . import trainer

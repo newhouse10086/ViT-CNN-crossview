@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 
-from ..utils import MetricsCalculator, RankingMetricsCalculator
+from ..utils import MetricsCalculator
 from ..utils import plot_confusion_matrix, plot_roc_curves
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,13 @@ class Evaluator:
         self.metrics_calculator = MetricsCalculator(
             num_classes=self.config.get('model', {}).get('num_classes', 10)
         )
-        self.ranking_calculator = RankingMetricsCalculator()
+        # Import RankingMetricsCalculator dynamically to avoid circular imports
+        try:
+            from ..utils.metrics import RankingMetricsCalculator
+            self.ranking_calculator = RankingMetricsCalculator()
+        except ImportError:
+            logger.warning("RankingMetricsCalculator not available, ranking metrics will be skipped")
+            self.ranking_calculator = None
         
         # Results storage
         self.predictions = []
@@ -59,7 +65,8 @@ class Evaluator:
         
         self.model.eval()
         self.metrics_calculator.reset()
-        self.ranking_calculator.reset()
+        if self.ranking_calculator:
+            self.ranking_calculator.reset()
         
         # Clear previous results
         self.predictions.clear()
@@ -147,13 +154,13 @@ class Evaluator:
         
         # Compute ranking metrics if we have both query and gallery features
         ranking_metrics = {}
-        if all_query_features and all_gallery_features:
+        if all_query_features and all_gallery_features and self.ranking_calculator:
             try:
                 query_features = torch.cat(all_query_features, dim=0)
                 gallery_features = torch.cat(all_gallery_features, dim=0)
                 query_labels = torch.cat(all_query_labels, dim=0)
                 gallery_labels = torch.cat(all_gallery_labels, dim=0)
-                
+
                 self.ranking_calculator.update(
                     query_features, gallery_features,
                     query_labels, gallery_labels
