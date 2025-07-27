@@ -289,6 +289,7 @@ class FSRAViTImproved(nn.Module):
         self.global_classifier = ClassBlock(
             input_dim=fusion_dim,
             class_num=num_classes,
+            num_bottleneck=target_pca_dim,  # Use same bottleneck as regional
             return_f=True
         )
         
@@ -303,18 +304,20 @@ class FSRAViTImproved(nn.Module):
         ])
         
         # Feature fusion for final prediction
-        final_fusion_dim = fusion_dim + num_clusters * target_pca_dim
+        # Now all features are target_pca_dim (256): global + 3 regional = 4 * 256 = 1024
+        final_fusion_dim = target_pca_dim + num_clusters * target_pca_dim
         self.feature_fusion = nn.Sequential(
-            nn.Linear(final_fusion_dim, fusion_dim),
-            nn.BatchNorm1d(fusion_dim),
+            nn.Linear(final_fusion_dim, target_pca_dim),  # Output consistent dimension
+            nn.BatchNorm1d(target_pca_dim),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5)
         )
         
         # Final classifier
         self.final_classifier = ClassBlock(
-            input_dim=fusion_dim,
+            input_dim=target_pca_dim,  # Input from feature_fusion
             class_num=num_classes,
+            num_bottleneck=target_pca_dim,
             return_f=True
         )
         
