@@ -129,25 +129,60 @@ class CommunityClusteringModule(nn.Module):
     def apply_pca(self, features: torch.Tensor) -> torch.Tensor:
         """
         Apply PCA for dimensionality reduction.
-        
+
         Args:
             features: Feature tensor of shape (N, D)
-            
+
         Returns:
             Reduced features of shape (N, target_dim)
         """
-        if self.pca is None:
-            # Fit PCA on first batch
-            features_np = features.detach().cpu().numpy()
-            self.pca = PCA(n_components=min(self.target_dim, features_np.shape[1]))
-            self.pca.fit(features_np)
-        
-        # Transform features (ensure detached)
         with torch.no_grad():
             features_np = features.detach().cpu().numpy()
-            features_reduced = self.pca.transform(features_np)
-        
-        return torch.tensor(features_reduced, dtype=features.dtype, device=features.device)
+            n_samples, n_features = features_np.shape
+
+            # Determine appropriate PCA components
+            max_components = min(n_samples, n_features)
+            target_components = min(self.target_dim, max_components)
+
+            # Skip PCA if not enough samples or features
+            if max_components <= 1 or target_components <= 0:
+                # Return original features or zero-padded/truncated features
+                if n_features >= self.target_dim:
+                    return features[:, :self.target_dim]
+                else:
+                    # Pad with zeros if needed
+                    padding = torch.zeros(n_samples, self.target_dim - n_features,
+                                        dtype=features.dtype, device=features.device)
+                    return torch.cat([features, padding], dim=1)
+
+            # Initialize PCA if needed
+            if self.pca is None or self.pca.n_components_ != target_components:
+                self.pca = PCA(n_components=target_components)
+                self.pca.fit(features_np)
+
+            # Transform features
+            try:
+                features_reduced = self.pca.transform(features_np)
+                result = torch.tensor(features_reduced, dtype=features.dtype, device=features.device)
+
+                # Pad or truncate to target dimension
+                if result.shape[1] < self.target_dim:
+                    padding = torch.zeros(result.shape[0], self.target_dim - result.shape[1],
+                                        dtype=features.dtype, device=features.device)
+                    result = torch.cat([result, padding], dim=1)
+                elif result.shape[1] > self.target_dim:
+                    result = result[:, :self.target_dim]
+
+                return result
+
+            except Exception as e:
+                # Fallback: return truncated or padded original features
+                if n_features >= self.target_dim:
+                    return features[:, :self.target_dim]
+                else:
+                    padding = torch.zeros(n_samples, self.target_dim - n_features,
+                                        dtype=features.dtype, device=features.device)
+                    return torch.cat([features, padding], dim=1)
     
     def forward(self, feature_map: torch.Tensor) -> Tuple[torch.Tensor, List[List[int]]]:
         """
