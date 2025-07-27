@@ -160,19 +160,31 @@ class CombinedLoss(nn.Module):
         # Triplet loss
         if self.triplet_loss is not None and self.triplet_weight > 0:
             triplet_loss = 0.0
-            
+
             if sat_features is not None:
-                if isinstance(sat_features, list):
+                # Handle dict features
+                if isinstance(sat_features, dict):
+                    # Use global features for triplet loss
+                    if 'global' in sat_features and isinstance(sat_features['global'], torch.Tensor):
+                        triplet_loss += self.triplet_loss(sat_features['global'], labels)
+                elif isinstance(sat_features, list):
                     for feat in sat_features:
-                        triplet_loss += self.triplet_loss(feat, labels)
-                else:
+                        if isinstance(feat, torch.Tensor):
+                            triplet_loss += self.triplet_loss(feat, labels)
+                elif isinstance(sat_features, torch.Tensor):
                     triplet_loss += self.triplet_loss(sat_features, labels)
-            
+
             if drone_features is not None:
-                if isinstance(drone_features, list):
+                # Handle dict features
+                if isinstance(drone_features, dict):
+                    # Use global features for triplet loss
+                    if 'global' in drone_features and isinstance(drone_features['global'], torch.Tensor):
+                        triplet_loss += self.triplet_loss(drone_features['global'], labels)
+                elif isinstance(drone_features, list):
                     for feat in drone_features:
-                        triplet_loss += self.triplet_loss(feat, labels)
-                else:
+                        if isinstance(feat, torch.Tensor):
+                            triplet_loss += self.triplet_loss(feat, labels)
+                elif isinstance(drone_features, torch.Tensor):
                     triplet_loss += self.triplet_loss(drone_features, labels)
             
             losses['triplet'] = triplet_loss

@@ -404,7 +404,26 @@ def train_epoch_with_monitoring(model, dataloader, criterion, optimizer, device,
                 else:
                     outputs = model(sat_images, drone_images)
 
-                losses = criterion(outputs, sat_labels)
+                try:
+                    losses = criterion(outputs, sat_labels)
+                except Exception as e:
+                    print(f"DETAILED ERROR DEBUG:")
+                    print(f"  Error: {e}")
+                    print(f"  Error type: {type(e)}")
+                    import traceback
+                    traceback.print_exc()
+
+                    # Debug outputs structure
+                    print(f"  Outputs keys: {list(outputs.keys())}")
+                    for key, value in outputs.items():
+                        print(f"    {key}: type={type(value)}")
+                        if isinstance(value, dict):
+                            print(f"      Sub-keys: {list(value.keys())}")
+
+                    # Debug labels
+                    print(f"  Labels: type={type(sat_labels)}, shape={sat_labels.shape if hasattr(sat_labels, 'shape') else 'no shape'}")
+
+                    raise e
                 total_loss = losses['total']
                 
                 total_loss.backward()
