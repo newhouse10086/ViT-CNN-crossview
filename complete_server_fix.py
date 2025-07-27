@@ -241,6 +241,47 @@ except Exception:
     else:
         print("⚠ visualization.py matplotlib fix not needed or already applied")
 
+def fix_torchvision_compatibility():
+    """Fix torchvision compatibility issues in resnet.py"""
+    resnet_file = 'src/models/backbones/resnet.py'
+
+    if not os.path.exists(resnet_file):
+        print(f"Warning: {resnet_file} not found")
+        return
+
+    with open(resnet_file, 'r') as f:
+        content = f.read()
+
+    # Fix torchvision ResNet API
+    old_resnet = '''        # Load ResNet18
+        if pretrained:
+            resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        else:
+            resnet = models.resnet18(weights=None)'''
+
+    new_resnet = '''        # Load ResNet18 with version compatibility
+        try:
+            # Try new torchvision API (v0.13+)
+            if pretrained:
+                resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+            else:
+                resnet = models.resnet18(weights=None)
+        except AttributeError:
+            # Fallback to old torchvision API (< v0.13)
+            resnet = models.resnet18(pretrained=pretrained)'''
+
+    fixed = False
+    if old_resnet in content:
+        content = content.replace(old_resnet, new_resnet)
+        fixed = True
+
+    if fixed:
+        with open(resnet_file, 'w') as f:
+            f.write(content)
+        print("✓ Fixed torchvision compatibility in resnet.py")
+    else:
+        print("⚠ resnet.py torchvision fix not needed or already applied")
+
 def test_imports():
     """Test if imports work after fixes"""
     import sys
@@ -312,6 +353,7 @@ def main():
     fix_weights_init()
     fix_sklearn_compatibility()
     fix_matplotlib_compatibility()
+    fix_torchvision_compatibility()
     
     # Test imports
     print("\nTesting imports...")

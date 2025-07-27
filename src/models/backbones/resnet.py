@@ -19,11 +19,16 @@ class ResNet18Backbone(nn.Module):
         """
         super(ResNet18Backbone, self).__init__()
         
-        # Load ResNet18
-        if pretrained:
-            resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
-        else:
-            resnet = models.resnet18(weights=None)
+        # Load ResNet18 with version compatibility
+        try:
+            # Try new torchvision API (v0.13+)
+            if pretrained:
+                resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+            else:
+                resnet = models.resnet18(weights=None)
+        except AttributeError:
+            # Fallback to old torchvision API (< v0.13)
+            resnet = models.resnet18(pretrained=pretrained)
         
         # Remove the final classification layers
         self.conv1 = resnet.conv1
