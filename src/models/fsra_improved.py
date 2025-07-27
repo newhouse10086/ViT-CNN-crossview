@@ -281,11 +281,12 @@ class FSRAImprovedModel(nn.Module):
         )
         
         # Regional classifiers for each cluster
-        # Note: ClassBlock returns features with same dim as input, so we use target_dim
+        # Use target_dim as bottleneck to maintain consistent feature dimensions
         self.regional_classifiers = nn.ModuleList([
             ClassBlock(
                 input_dim=self.community_clustering.target_dim,
                 class_num=num_classes,
+                num_bottleneck=self.community_clustering.target_dim,  # Keep same dimension
                 return_f=True
             ) for _ in range(num_clusters)
         ])
