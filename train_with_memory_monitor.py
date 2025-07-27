@@ -395,6 +395,18 @@ def train_epoch_with_monitoring(model, dataloader, criterion, optimizer, device,
                 else:
                     outputs = model(sat_images, drone_images)
 
+                # Quick debug: Check outputs structure
+                if batch_idx == 0:
+                    if 'satellite' in outputs and 'predictions' in outputs['satellite']:
+                        predictions = outputs['satellite']['predictions']
+                        print(f"TEMP DEBUG: Predictions list length: {len(predictions)}")
+                        for i, pred in enumerate(predictions):
+                            print(f"  Pred {i}: type={type(pred)}")
+                            if hasattr(pred, 'shape'):
+                                print(f"    Shape: {pred.shape}")
+                            elif isinstance(pred, dict):
+                                print(f"    Dict keys: {list(pred.keys())}")
+
                 losses = criterion(outputs, sat_labels)
                 total_loss = losses['total']
                 

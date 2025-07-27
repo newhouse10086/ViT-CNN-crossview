@@ -106,8 +106,18 @@ class CombinedLoss(nn.Module):
                         elif pred_tensor.ndim != 2:
                             logger.warning(f"Unexpected prediction tensor dimensions: {pred_tensor.shape}")
                             continue
-
-                    cls_loss += self.classification_loss(pred_tensor, labels)
+                        cls_loss += self.classification_loss(pred_tensor, labels)
+                    elif isinstance(pred_tensor, dict):
+                        logger.warning(f"Prediction is a dict with keys: {list(pred_tensor.keys())}")
+                        # Try to extract tensor from dict
+                        if 'logits' in pred_tensor:
+                            cls_loss += self.classification_loss(pred_tensor['logits'], labels)
+                        elif 'prediction' in pred_tensor:
+                            cls_loss += self.classification_loss(pred_tensor['prediction'], labels)
+                        else:
+                            logger.warning(f"Cannot find prediction tensor in dict, skipping")
+                    else:
+                        logger.warning(f"Prediction is neither tensor nor dict: {type(pred_tensor)}")
             else:
                 # Handle case where sat_predictions might be [tensor, features]
                 if isinstance(sat_predictions, list) and len(sat_predictions) == 2:
