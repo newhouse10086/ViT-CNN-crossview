@@ -67,23 +67,42 @@ def hard_example_mining(dist_mat: torch.Tensor, labels: torch.Tensor,
 
     # `dist_ap` means distance(anchor, positive)
     # both `dist_ap` and `relative_p_inds` with shape [N, 1]
-    pos_mask_reshaped = dist_mat[is_pos].contiguous().view(N, -1)
-    if pos_mask_reshaped.size(1) == 0:
-        # No positive pairs found, return zeros
+
+    # For positive pairs, we want the maximum distance (hardest positive)
+    # Set negative pairs to a very small value so they won't be selected
+    dist_mat_pos = dist_mat.clone()
+    dist_mat_pos[is_neg] = -float('inf')
+    dist_mat_pos[torch.eye(N, dtype=torch.bool, device=dist_mat.device)] = -float('inf')  # Exclude self
+
+    # Check if we have any positive pairs
+    has_pos = is_pos.sum(dim=1) > 1  # More than 1 because diagonal is always True
+
+    if has_pos.any():
+        dist_ap, relative_p_inds = torch.max(dist_mat_pos, 1, keepdim=True)
+        # Set to 0 for samples without positive pairs
+        dist_ap[~has_pos] = 0.0
+    else:
         dist_ap = torch.zeros(N, 1, device=dist_mat.device)
         relative_p_inds = torch.zeros(N, 1, dtype=torch.long, device=dist_mat.device)
-    else:
-        dist_ap, relative_p_inds = torch.max(pos_mask_reshaped, 1, keepdim=True)
 
     # `dist_an` means distance(anchor, negative)
     # both `dist_an` and `relative_n_inds` with shape [N, 1]
-    neg_mask_reshaped = dist_mat[is_neg].contiguous().view(N, -1)
-    if neg_mask_reshaped.size(1) == 0:
-        # No negative pairs found, return large distances
+
+    # For negative pairs, we want the minimum distance (hardest negative)
+    # Set positive pairs to a very large value so they won't be selected
+    dist_mat_neg = dist_mat.clone()
+    dist_mat_neg[is_pos] = float('inf')
+
+    # Check if we have any negative pairs
+    has_neg = is_neg.any(dim=1)
+
+    if has_neg.any():
+        dist_an, relative_n_inds = torch.min(dist_mat_neg, 1, keepdim=True)
+        # Set to large value for samples without negative pairs
+        dist_an[~has_neg] = float('inf')
+    else:
         dist_an = torch.full((N, 1), float('inf'), device=dist_mat.device)
         relative_n_inds = torch.zeros(N, 1, dtype=torch.long, device=dist_mat.device)
-    else:
-        dist_an, relative_n_inds = torch.min(neg_mask_reshaped, 1, keepdim=True)
     # shape [N]
     dist_ap = dist_ap.squeeze(1)
     dist_an = dist_an.squeeze(1)
