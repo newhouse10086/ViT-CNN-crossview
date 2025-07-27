@@ -88,16 +88,36 @@ class CombinedLoss(nn.Module):
         if sat_predictions is not None:
             if isinstance(sat_predictions, list):
                 for pred in sat_predictions:
-                    cls_loss += self.classification_loss(pred, labels)
+                    # Handle case where pred might still be a list [tensor, features]
+                    if isinstance(pred, list):
+                        pred_tensor = pred[0]  # Take the prediction tensor
+                    else:
+                        pred_tensor = pred
+                    cls_loss += self.classification_loss(pred_tensor, labels)
             else:
-                cls_loss += self.classification_loss(sat_predictions, labels)
-        
+                # Handle case where sat_predictions might be [tensor, features]
+                if isinstance(sat_predictions, list) and len(sat_predictions) == 2:
+                    pred_tensor = sat_predictions[0]
+                else:
+                    pred_tensor = sat_predictions
+                cls_loss += self.classification_loss(pred_tensor, labels)
+
         if drone_predictions is not None:
             if isinstance(drone_predictions, list):
                 for pred in drone_predictions:
-                    cls_loss += self.classification_loss(pred, labels)
+                    # Handle case where pred might still be a list [tensor, features]
+                    if isinstance(pred, list):
+                        pred_tensor = pred[0]  # Take the prediction tensor
+                    else:
+                        pred_tensor = pred
+                    cls_loss += self.classification_loss(pred_tensor, labels)
             else:
-                cls_loss += self.classification_loss(drone_predictions, labels)
+                # Handle case where drone_predictions might be [tensor, features]
+                if isinstance(drone_predictions, list) and len(drone_predictions) == 2:
+                    pred_tensor = drone_predictions[0]
+                else:
+                    pred_tensor = drone_predictions
+                cls_loss += self.classification_loss(pred_tensor, labels)
         
         losses['classification'] = cls_loss
         total_loss += cls_loss
