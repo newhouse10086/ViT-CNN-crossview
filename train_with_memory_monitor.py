@@ -36,6 +36,7 @@ from src.models import create_model
 from src.datasets import make_dataloader
 from src.losses import CombinedLoss
 from src.optimizers import create_optimizer_with_config
+from src.utils.training_logger import setup_training_logger
 
 
 def get_memory_usage():
@@ -363,7 +364,7 @@ class MemoryMonitoringMetrics:
         }
 
 
-def train_epoch_with_monitoring(model, dataloader, criterion, optimizer, device, metrics_calc, epoch, total_epochs, log_interval=10):
+def train_epoch_with_monitoring(model, dataloader, criterion, optimizer, device, metrics_calc, epoch, total_epochs, log_interval=10, training_logger=None):
     """Train one epoch with memory monitoring."""
     model.train()
     metrics_calc.reset()
@@ -439,8 +440,8 @@ def train_epoch_with_monitoring(model, dataloader, criterion, optimizer, device,
                     avg_batch_time = np.mean(batch_times[-10:]) if len(batch_times) >= 10 else np.mean(batch_times)
                     gpu_increase = current_gpu - initial_gpu
                     ram_increase = current_ram - initial_ram
-                    
-                    logging.info(
+
+                    log_message = (
                         f"Epoch [{epoch+1}/{total_epochs}] "
                         f"Batch [{batch_idx}/{len(dataloader)}] "
                         f"Loss: {total_loss.item():.6f} "
@@ -449,6 +450,22 @@ def train_epoch_with_monitoring(model, dataloader, criterion, optimizer, device,
                         f"GPU: +{gpu_increase:.1f}MB "
                         f"RAM: +{ram_increase:.2f}GB"
                     )
+
+                    logging.info(log_message)
+
+                    # Log to training logger if available
+                    if training_logger:
+                        training_logger.info(log_message)
+
+                        # Log batch metrics
+                        batch_metrics = {
+                            'batch_loss': total_loss.item(),
+                            'batch_time': batch_time,
+                            'avg_batch_time': avg_batch_time,
+                            'gpu_memory_increase': gpu_increase,
+                            'ram_increase': ram_increase
+                        }
+                        training_logger.log_metrics(batch_metrics, epoch+1, batch_idx)
                 
                 # Clean up batch data
                 del sat_images, drone_images, sat_labels, outputs, losses, total_loss
@@ -517,16 +534,33 @@ def main():
     if args.gpu_ids:
         config['system']['gpu_ids'] = args.gpu_ids
     
-    # Setup logging
+    # Setup enhanced logging
+    experiment_name = f"fsra_vit_improved_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    training_logger = setup_training_logger(log_dir="logs", experiment_name=experiment_name)
+
+    # Also keep basic logging for compatibility
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
     logger = logging.getLogger(__name__)
-    
+
     set_seed(config['system']['seed'])
-    
+
+    # Log training start with configuration
+    training_config = {
+        'model_name': config['model']['name'],
+        'batch_size': config['data']['batch_size'],
+        'learning_rate': config['training']['learning_rate'],
+        'num_epochs': config['training']['num_epochs'],
+        'device': f"cuda:{config['system']['gpu_ids']}" if torch.cuda.is_available() else "cpu",
+        'seed': config['system']['seed'],
+        'data_dir': config['data']['data_dir']
+    }
+    training_logger.log_training_start(training_config)
+
     logger.info(f"🔍 MEMORY MONITORING TRAINING: {config['model']['name']}")
+    training_logger.info(f"🔍 MEMORY MONITORING TRAINING: {config['model']['name']}")
     
     device = torch.device(f"cuda:{config['system']['gpu_ids']}" if torch.cuda.is_available() else "cpu")
     logger.info(f"Device: {device}")
@@ -565,8 +599,8 @@ def main():
         logger.info(f"{'='*80}")
         
         train_metrics = train_epoch_with_monitoring(
-            model, dataloader, criterion, optimizer, device, 
-            metrics_calc, epoch, num_epochs, log_interval
+            model, dataloader, criterion, optimizer, device,
+            metrics_calc, epoch, num_epochs, log_interval, training_logger
         )
         
         if scheduler:
@@ -574,6 +608,10 @@ def main():
 
         # Get current learning rate
         current_lr = optimizer.param_groups[0]['lr']
+
+        # Log metrics to files
+        training_logger.log_metrics(train_metrics, epoch+1)
+        training_logger.log_epoch_summary(epoch+1, train_metrics)
 
         # Print detailed metrics report with memory monitoring
         print_detailed_metrics_with_memory(train_metrics, epoch+1, num_epochs, current_lr)
@@ -603,10 +641,26 @@ def main():
             'time_degradation': train_metrics['time_degradation_percent']
         })
     
+    # Calculate total training time
+    total_training_time = sum(metrics['epoch_time'] for metrics in training_history)
+
+    # Prepare best metrics
+    best_metrics = {
+        'best_accuracy': best_accuracy,
+        'best_auc': best_auc,
+        'total_epochs': num_epochs,
+        'final_loss': training_history[-1]['loss'] if training_history else 0.0
+    }
+
+    # Log training completion
+    training_logger.log_training_end(total_training_time, best_metrics)
+    training_logger.save_metrics_summary()
+
     # Print final training summary with memory analysis
     print_memory_training_summary(training_history, best_accuracy, best_auc, num_epochs)
 
     logger.info("🎊 Memory monitoring training completed!")
+    training_logger.info("🎊 Memory monitoring training completed!")
 
 
 if __name__ == "__main__":
