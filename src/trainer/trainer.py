@@ -94,6 +94,20 @@ class Trainer:
                     else:
                         outputs = self.model(sat_images, drone_images)
                     
+                    # Debug output structure
+                    if batch_idx == 0:  # Only debug first batch
+                        logger.info("Debugging model outputs:")
+                        for key, value in outputs.items():
+                            if isinstance(value, dict) and 'predictions' in value:
+                                preds = value['predictions']
+                                logger.info(f"  {key} predictions type: {type(preds)}")
+                                if isinstance(preds, list):
+                                    for i, pred in enumerate(preds):
+                                        if isinstance(pred, torch.Tensor):
+                                            logger.info(f"    [{i}]: shape={pred.shape}, ndim={pred.ndim}")
+                                        else:
+                                            logger.info(f"    [{i}]: type={type(pred)}")
+
                     # Compute loss
                     losses = self.criterion(outputs, sat_labels)
                     total_loss = losses['total']
@@ -110,9 +124,21 @@ class Trainer:
                     if 'satellite' in outputs and outputs['satellite'] is not None:
                         sat_preds = outputs['satellite']['predictions']
                         if isinstance(sat_preds, list):
-                            pred = torch.argmax(sat_preds[0], dim=1)
+                            # Find the first valid 2D prediction
+                            pred = None
+                            for p in sat_preds:
+                                if isinstance(p, torch.Tensor) and p.ndim == 2:
+                                    pred = torch.argmax(p, dim=1)
+                                    break
+                            if pred is None:
+                                logger.warning("No valid 2D predictions found for accuracy calculation")
+                                pred = torch.zeros(sat_images.size(0), dtype=torch.long, device=self.device)
                         else:
-                            pred = torch.argmax(sat_preds, dim=1)
+                            if isinstance(sat_preds, torch.Tensor) and sat_preds.ndim == 2:
+                                pred = torch.argmax(sat_preds, dim=1)
+                            else:
+                                logger.warning(f"Invalid prediction tensor shape: {sat_preds.shape if isinstance(sat_preds, torch.Tensor) else type(sat_preds)}")
+                                pred = torch.zeros(sat_images.size(0), dtype=torch.long, device=self.device)
                         
                         self.metrics_calculator.update(
                             pred.cpu().numpy(),
