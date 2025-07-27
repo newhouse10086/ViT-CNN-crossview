@@ -395,5 +395,6 @@ class FSRAViTImproved(nn.Module):
                     'vit_features': vit_features,
                     'fused_features': fused_features
                 }
-            }
+            },
+            'alignment': None  # No alignment loss for this model
         }
