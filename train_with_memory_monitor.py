@@ -381,9 +381,18 @@ def train_epoch_with_monitoring(model, dataloader, criterion, optimizer, device,
         batch_start_time = time.time()
         
         try:
-            if isinstance(batch_data, (list, tuple)) and len(batch_data) == 2:
-                (sat_images, sat_labels), (drone_images, drone_labels) = batch_data
-                
+            # Handle different data formats
+            if isinstance(batch_data, (list, tuple)):
+                if len(batch_data) == 2:
+                    # Format: ((sat_images, sat_labels), (drone_images, drone_labels))
+                    (sat_images, sat_labels), (drone_images, drone_labels) = batch_data
+                elif len(batch_data) == 3:
+                    # Format: (sat_images, drone_images, labels)
+                    sat_images, drone_images, sat_labels = batch_data
+                    drone_labels = sat_labels  # Same labels for both views
+                else:
+                    raise ValueError(f"Unexpected batch_data length: {len(batch_data)}")
+
                 sat_images = sat_images.to(device)
                 drone_images = drone_images.to(device)
                 sat_labels = sat_labels.to(device)
