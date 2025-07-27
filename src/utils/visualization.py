@@ -11,9 +11,28 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Set style
-plt.style.use('seaborn-v0_8')
-sns.set_palette("husl")
+# Set style with compatibility fallback
+try:
+    # Try modern seaborn style first
+    plt.style.use('seaborn-v0_8')
+except OSError:
+    try:
+        # Fallback to older seaborn style
+        plt.style.use('seaborn')
+    except OSError:
+        try:
+            # Fallback to seaborn-whitegrid
+            plt.style.use('seaborn-whitegrid')
+        except OSError:
+            # Final fallback to default
+            plt.style.use('default')
+            print("Warning: Using default matplotlib style (seaborn styles not available)")
+
+# Set seaborn palette with error handling
+try:
+    sns.set_palette("husl")
+except Exception:
+    print("Warning: Could not set seaborn palette")
 
 
 class TrainingVisualizer:
@@ -197,9 +216,29 @@ def plot_confusion_matrix(cm: np.ndarray, class_names: Optional[List[str]] = Non
     # Normalize confusion matrix
     cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
     
-    # Create heatmap
-    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues',
-                xticklabels=class_names, yticklabels=class_names, ax=ax)
+    # Create heatmap with fallback
+    try:
+        sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues',
+                    xticklabels=class_names, yticklabels=class_names, ax=ax)
+    except Exception as e:
+        # Fallback to matplotlib imshow if seaborn fails
+        logger.warning(f"Seaborn heatmap failed, using matplotlib fallback: {e}")
+        im = ax.imshow(cm_normalized, interpolation='nearest', cmap='Blues')
+
+        # Add text annotations
+        thresh = cm_normalized.max() / 2.
+        for i in range(cm_normalized.shape[0]):
+            for j in range(cm_normalized.shape[1]):
+                ax.text(j, i, f'{cm_normalized[i, j]:.2f}',
+                       ha="center", va="center",
+                       color="white" if cm_normalized[i, j] > thresh else "black")
+
+        # Set labels
+        if class_names:
+            ax.set_xticks(range(len(class_names)))
+            ax.set_yticks(range(len(class_names)))
+            ax.set_xticklabels(class_names)
+            ax.set_yticklabels(class_names)
     
     ax.set_title(title)
     ax.set_xlabel('Predicted Label')

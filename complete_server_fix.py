@@ -190,6 +190,57 @@ except ImportError:
     else:
         print("⚠ metrics.py sklearn fix not needed or already applied")
 
+def fix_matplotlib_compatibility():
+    """Fix matplotlib/seaborn compatibility issues in visualization.py"""
+    viz_file = 'src/utils/visualization.py'
+
+    if not os.path.exists(viz_file):
+        print(f"Warning: {viz_file} not found")
+        return
+
+    with open(viz_file, 'r') as f:
+        content = f.read()
+
+    # Fix matplotlib style
+    old_style = '''# Set style
+plt.style.use('seaborn-v0_8')
+sns.set_palette("husl")'''
+
+    new_style = '''# Set style with compatibility fallback
+try:
+    # Try modern seaborn style first
+    plt.style.use('seaborn-v0_8')
+except OSError:
+    try:
+        # Fallback to older seaborn style
+        plt.style.use('seaborn')
+    except OSError:
+        try:
+            # Fallback to seaborn-whitegrid
+            plt.style.use('seaborn-whitegrid')
+        except OSError:
+            # Final fallback to default
+            plt.style.use('default')
+            print("Warning: Using default matplotlib style (seaborn styles not available)")
+
+# Set seaborn palette with error handling
+try:
+    sns.set_palette("husl")
+except Exception:
+    print("Warning: Could not set seaborn palette")'''
+
+    fixed = False
+    if old_style in content:
+        content = content.replace(old_style, new_style)
+        fixed = True
+
+    if fixed:
+        with open(viz_file, 'w') as f:
+            f.write(content)
+        print("✓ Fixed matplotlib compatibility in visualization.py")
+    else:
+        print("⚠ visualization.py matplotlib fix not needed or already applied")
+
 def test_imports():
     """Test if imports work after fixes"""
     import sys
@@ -260,6 +311,7 @@ def main():
     fix_vit_pytorch()
     fix_weights_init()
     fix_sklearn_compatibility()
+    fix_matplotlib_compatibility()
     
     # Test imports
     print("\nTesting imports...")
