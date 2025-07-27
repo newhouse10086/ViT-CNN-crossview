@@ -375,8 +375,11 @@ class FSRAViTImproved(nn.Module):
         global_feat = F.adaptive_avg_pool2d(fused_features, (1, 1)).view(B, -1)  # (B, 200)
         
         # Global classification
+        print(f"DEBUG: Global feat shape: {global_feat.shape}")
         global_output = self.global_classifier(global_feat)
+        print(f"DEBUG: Global output type: {type(global_output)}, content: {global_output if not isinstance(global_output, torch.Tensor) else 'tensor'}")
         global_pred, global_f = global_output  # Unpack the list
+        print(f"DEBUG: Global pred shape: {global_pred.shape}, global_f shape: {global_f.shape}")
         
         # Community clustering on fused features
         print(f"DEBUG: Before community clustering - fused_features shape: {fused_features.shape}")
@@ -389,8 +392,23 @@ class FSRAViTImproved(nn.Module):
 
         for i, regional_classifier in enumerate(self.regional_classifiers):
             regional_input = clustered_features[:, i, :]  # (B, 256)
+            print(f"DEBUG: Regional {i} input shape: {regional_input.shape}")
             regional_output = regional_classifier(regional_input)
-            regional_pred, regional_f = regional_output  # Unpack the list
+            print(f"DEBUG: Regional {i} output type: {type(regional_output)}")
+            if isinstance(regional_output, dict):
+                print(f"DEBUG: Regional {i} output is dict with keys: {list(regional_output.keys())}")
+                # Handle dict output - this might be the issue
+                if 'prediction' in regional_output and 'features' in regional_output:
+                    regional_pred = regional_output['prediction']
+                    regional_f = regional_output['features']
+                else:
+                    # Fallback - try to get first two values
+                    values = list(regional_output.values())
+                    regional_pred = values[0] if len(values) > 0 else torch.zeros(regional_input.shape[0], self.num_classes)
+                    regional_f = values[1] if len(values) > 1 else torch.zeros(regional_input.shape[0], self.target_pca_dim)
+            else:
+                regional_pred, regional_f = regional_output  # Unpack the list
+            print(f"DEBUG: Regional {i} pred shape: {regional_pred.shape}, feat shape: {regional_f.shape}")
             regional_preds.append(regional_pred)
             regional_feats.append(regional_f)
         
@@ -410,11 +428,30 @@ class FSRAViTImproved(nn.Module):
         fused_features_final = self.feature_fusion(all_features)  # (B, fusion_dim)
         
         # Final classification
+        print(f"DEBUG: Final input shape: {fused_features_final.shape}")
         final_output = self.final_classifier(fused_features_final)
-        final_pred, final_f = final_output  # Unpack the list
+        print(f"DEBUG: Final output type: {type(final_output)}")
+        if isinstance(final_output, dict):
+            print(f"DEBUG: Final output is dict with keys: {list(final_output.keys())}")
+            # Handle dict output
+            if 'prediction' in final_output and 'features' in final_output:
+                final_pred = final_output['prediction']
+                final_f = final_output['features']
+            else:
+                values = list(final_output.values())
+                final_pred = values[0] if len(values) > 0 else torch.zeros(fused_features_final.shape[0], self.num_classes)
+                final_f = values[1] if len(values) > 1 else torch.zeros(fused_features_final.shape[0], self.target_pca_dim)
+        else:
+            final_pred, final_f = final_output  # Unpack the list
+        print(f"DEBUG: Final pred shape: {final_pred.shape}, final_f shape: {final_f.shape}")
         
         # Prepare output
         predictions = [global_pred] + regional_preds + [final_pred]
+
+        # Debug: Check predictions list
+        print(f"DEBUG: Predictions list length: {len(predictions)}")
+        for i, pred in enumerate(predictions):
+            print(f"  Pred {i}: type={type(pred)}, shape={pred.shape if hasattr(pred, 'shape') else 'no shape'}")
         
         return {
             'satellite': {
