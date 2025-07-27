@@ -46,8 +46,8 @@ class CommunityClusteringModule(nn.Module):
         features_norm = F.normalize(features, p=2, dim=1)
         similarity_matrix = torch.mm(features_norm, features_norm.t())
         
-        # Convert to numpy for NetworkX
-        similarity_np = similarity_matrix.cpu().numpy()
+        # Convert to numpy for NetworkX (detach to avoid gradient issues)
+        similarity_np = similarity_matrix.detach().cpu().numpy()
         
         # Build graph
         G = nx.Graph()
@@ -142,9 +142,10 @@ class CommunityClusteringModule(nn.Module):
             self.pca = PCA(n_components=min(self.target_dim, features_np.shape[1]))
             self.pca.fit(features_np)
         
-        # Transform features
-        features_np = features.detach().cpu().numpy()
-        features_reduced = self.pca.transform(features_np)
+        # Transform features (ensure detached)
+        with torch.no_grad():
+            features_np = features.detach().cpu().numpy()
+            features_reduced = self.pca.transform(features_np)
         
         return torch.tensor(features_reduced, dtype=features.dtype, device=features.device)
     
