@@ -4,8 +4,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Dict, Optional, Union
+import logging
 
 from .triplet_loss import TripletLoss
+
+logger = logging.getLogger(__name__)
 
 
 class CombinedLoss(nn.Module):
@@ -93,6 +96,17 @@ class CombinedLoss(nn.Module):
                         pred_tensor = pred[0]  # Take the prediction tensor
                     else:
                         pred_tensor = pred
+
+                    # Additional safety check for tensor dimensions
+                    if isinstance(pred_tensor, torch.Tensor):
+                        if pred_tensor.ndim == 1:
+                            # Skip 1D tensors with warning
+                            logger.warning(f"Skipping 1D prediction tensor with shape {pred_tensor.shape}")
+                            continue
+                        elif pred_tensor.ndim != 2:
+                            logger.warning(f"Unexpected prediction tensor dimensions: {pred_tensor.shape}")
+                            continue
+
                     cls_loss += self.classification_loss(pred_tensor, labels)
             else:
                 # Handle case where sat_predictions might be [tensor, features]
@@ -110,6 +124,17 @@ class CombinedLoss(nn.Module):
                         pred_tensor = pred[0]  # Take the prediction tensor
                     else:
                         pred_tensor = pred
+
+                    # Additional safety check for tensor dimensions
+                    if isinstance(pred_tensor, torch.Tensor):
+                        if pred_tensor.ndim == 1:
+                            # Skip 1D tensors with warning
+                            logger.warning(f"Skipping 1D drone prediction tensor with shape {pred_tensor.shape}")
+                            continue
+                        elif pred_tensor.ndim != 2:
+                            logger.warning(f"Unexpected drone prediction tensor dimensions: {pred_tensor.shape}")
+                            continue
+
                     cls_loss += self.classification_loss(pred_tensor, labels)
             else:
                 # Handle case where drone_predictions might be [tensor, features]
