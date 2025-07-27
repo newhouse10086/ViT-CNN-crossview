@@ -26,7 +26,7 @@ class ResNet18Backbone(nn.Module):
                 resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
             else:
                 resnet = models.resnet18(weights=None)
-        except AttributeError:
+        except (AttributeError, TypeError):
             # Fallback to old torchvision API (< v0.13)
             resnet = models.resnet18(pretrained=pretrained)
         
