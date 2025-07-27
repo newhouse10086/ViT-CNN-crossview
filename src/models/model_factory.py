@@ -7,6 +7,8 @@ import logging
 
 from .vit_cnn_model import make_vit_cnn_model
 from .two_view_model import make_fsra_model
+from .fsra_improved import make_fsra_improved_model
+from .two_view_fsra import make_two_view_fsra_improved
 from .cross_attention import CrossAttentionModel
 
 logger = logging.getLogger(__name__)
@@ -35,6 +37,8 @@ def create_model(config: Dict[str, Any]) -> nn.Module:
         return create_vit_cnn_model(config)
     elif model_name.lower() == 'fsra':
         return create_fsra_model(config)
+    elif model_name.lower() == 'fsra_improved':
+        return create_fsra_improved_model(config)
     else:
         raise ValueError(f"Unsupported model type: {model_name}")
 
@@ -276,4 +280,47 @@ def setup_model_for_training(model: nn.Module, config: Dict[str, Any]) -> nn.Mod
     # Print model information
     print_model_info(model, model_config['name'])
     
+    return model
+
+
+def create_fsra_improved_model(config: Dict[str, Any]) -> nn.Module:
+    """
+    Create FSRA Improved model based on configuration.
+
+    Args:
+        config: Configuration dictionary
+
+    Returns:
+        FSRA Improved model
+    """
+    model_config = config['model']
+    data_config = config['data']
+
+    num_classes = model_config['num_classes']
+    num_clusters = model_config.get('num_final_clusters', 3)
+    use_pretrained = model_config.get('use_pretrained_resnet', True)
+    feature_dim = model_config.get('feature_dim', 512)
+    share_weights = model_config.get('share_weights', True)
+    views = data_config['views']
+
+    logger.info(f"Creating FSRA Improved model with {num_classes} classes, {num_clusters} clusters")
+
+    if views == 1:
+        model = make_fsra_improved_model(
+            num_classes=num_classes,
+            num_clusters=num_clusters,
+            use_pretrained=use_pretrained,
+            feature_dim=feature_dim
+        )
+    elif views == 2:
+        model = make_two_view_fsra_improved(
+            num_classes=num_classes,
+            num_clusters=num_clusters,
+            use_pretrained=use_pretrained,
+            feature_dim=feature_dim,
+            share_weights=share_weights
+        )
+    else:
+        raise ValueError(f"Unsupported number of views: {views}")
+
     return model
