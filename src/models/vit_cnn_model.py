@@ -335,20 +335,36 @@ class ViTCNNModel(nn.Module):
         
         # Feature fusion
         if self.return_f:
-            all_features = [global_pred[1]] + [pred[1] if isinstance(pred, list) else pred 
-                                             for pred in regional_preds]
+            # Extract features from classifier outputs
+            global_pred_tensor = global_pred[0] if isinstance(global_pred, list) else global_pred
+            global_feat_tensor = global_pred[1] if isinstance(global_pred, list) else global_features
+
+            regional_pred_tensors = []
+            regional_feat_tensors = []
+
+            for pred in regional_preds:
+                if isinstance(pred, list):
+                    regional_pred_tensors.append(pred[0])
+                    regional_feat_tensors.append(pred[1])
+                else:
+                    regional_pred_tensors.append(pred)
+                    regional_feat_tensors.append(pred)  # This shouldn't happen but handle it
+
+            # Fuse features
+            all_features = [global_feat_tensor] + regional_feat_tensors
             fused_features = self.feature_fusion(all_features)
             final_pred = self.final_classifier(fused_features)
-            
-            predictions = [global_pred[0]] + [pred[0] if isinstance(pred, list) else pred 
-                                            for pred in regional_preds] + [final_pred[0]]
-            features = [global_pred[1]] + [pred[1] if isinstance(pred, list) else pred 
-                                         for pred in regional_preds] + [final_pred[1]]
+
+            final_pred_tensor = final_pred[0] if isinstance(final_pred, list) else final_pred
+            final_feat_tensor = final_pred[1] if isinstance(final_pred, list) else fused_features
+
+            predictions = [global_pred_tensor] + regional_pred_tensors + [final_pred_tensor]
+            features = [global_feat_tensor] + regional_feat_tensors + [final_feat_tensor]
         else:
             all_features = [global_features] + regional_features
             fused_features = self.feature_fusion(all_features)
             final_pred = self.final_classifier(fused_features)
-            
+
             predictions = [global_pred] + regional_preds + [final_pred]
             features = [global_features] + regional_features + [fused_features]
         

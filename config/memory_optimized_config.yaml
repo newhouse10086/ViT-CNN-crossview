@@ -1,0 +1,77 @@
+# ViT-CNN-crossview Memory Optimized Configuration
+# Optimized for Tesla V100S with 32GB memory
+
+model:
+  name: "ViTCNN"
+  backbone: "vit_small_patch16_224"
+  num_classes: 701
+  block_size: 3
+  share_weights: true
+  return_features: true
+  dropout_rate: 0.1
+  use_pretrained_resnet: true
+  use_pretrained_vit: false
+  num_final_clusters: 3
+  resnet_layers: 18
+  vit_patch_size: 16
+  vit_embed_dim: 384  # Reduced from 768 for memory efficiency
+
+data:
+  data_dir: "data"
+  batch_size: 8       # Reduced batch size for memory efficiency
+  num_workers: 4
+  image_height: 224   # Reduced from 256 for memory efficiency
+  image_width: 224    # Reduced from 256 for memory efficiency
+  views: 2
+  sample_num: 4
+  pad: 0
+  color_jitter: false
+  random_erasing_prob: 0.0
+
+training:
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.0005
+  momentum: 0.9
+  warm_epochs: 5
+  lr_scheduler_steps: [40, 70]
+  lr_scheduler_gamma: 0.1
+  triplet_loss_weight: 0.3
+  kl_loss_weight: 0.0
+  use_kl_loss: false
+  cross_attention_weight: 1.0
+  use_fp16: false     # Keep false for PyTorch 1.10.2
+  use_autocast: false # Keep false for PyTorch 1.10.2
+  use_data_augmentation: true
+  moving_avg: 1.0
+  optimizer: "sgd"
+  scheduler: "step"
+
+evaluation:
+  eval_interval: 10
+  save_plots: true
+  plot_interval: 10
+  metrics_to_track:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+  save_confusion_matrix: true
+  save_roc_curves: false  # Disable for memory efficiency
+  save_training_curves: true
+
+system:
+  gpu_ids: "0"
+  use_gpu: true
+  seed: 42
+  log_interval: 10
+  save_interval: 10
+  checkpoint_dir: "checkpoints"
+  log_dir: "logs"
+  pretrained_dir: "pretrained"
+  log_level: "INFO"
+  save_logs_to_file: true
+  use_tensorboard: false
+  use_wandb: false
+
+mode: 0  # Training mode
