@@ -3,7 +3,7 @@
 import yaml
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, List
 import logging
 
 logger = logging.getLogger(__name__)

@@ -11,14 +11,21 @@ from pathlib import Path
 # Add src to path
 sys.path.append(str(Path(__file__).parent / "src"))
 
-from src.models import create_model
-from src.datasets import make_dataloader, create_dummy_dataset
-from src.losses import CombinedLoss
-from src.optimizers import create_optimizer_with_config
-from src.utils import (
-    setup_logger, get_logger, load_config, validate_config,
-    TrainingVisualizer, MetricsCalculator, log_system_info
-)
+# Import with error handling
+try:
+    from src.models import create_model
+    from src.datasets import make_dataloader, create_dummy_dataset
+    from src.losses import CombinedLoss
+    from src.optimizers import create_optimizer_with_config
+    from src.utils import (
+        setup_logger, get_logger, load_config, validate_config,
+        TrainingVisualizer, MetricsCalculator, log_system_info
+    )
+    print("✓ All imports successful")
+except ImportError as e:
+    print(f"Import error: {e}")
+    print("Please check your installation and dependencies.")
+    sys.exit(1)
 
 
 def parse_args():
