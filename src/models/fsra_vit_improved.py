@@ -353,7 +353,8 @@ class FSRAViTImproved(nn.Module):
         global_feat = F.adaptive_avg_pool2d(fused_features, (1, 1)).view(B, -1)  # (B, 200)
         
         # Global classification
-        global_pred, global_f = self.global_classifier(global_feat)
+        global_output = self.global_classifier(global_feat)
+        global_pred, global_f = global_output  # Unpack the list
         
         # Community clustering on fused features
         clustered_features, communities = self.community_clustering(fused_features)  # (B, 3, 256)
@@ -361,10 +362,11 @@ class FSRAViTImproved(nn.Module):
         # Regional classification
         regional_preds = []
         regional_feats = []
-        
+
         for i, regional_classifier in enumerate(self.regional_classifiers):
             regional_input = clustered_features[:, i, :]  # (B, 256)
-            regional_pred, regional_f = regional_classifier(regional_input)
+            regional_output = regional_classifier(regional_input)
+            regional_pred, regional_f = regional_output  # Unpack the list
             regional_preds.append(regional_pred)
             regional_feats.append(regional_f)
         
@@ -373,7 +375,8 @@ class FSRAViTImproved(nn.Module):
         fused_features_final = self.feature_fusion(all_features)  # (B, fusion_dim)
         
         # Final classification
-        final_pred, final_f = self.final_classifier(fused_features_final)
+        final_output = self.final_classifier(fused_features_final)
+        final_pred, final_f = final_output  # Unpack the list
         
         # Prepare output
         predictions = [global_pred] + regional_preds + [final_pred]
