@@ -67,12 +67,23 @@ def hard_example_mining(dist_mat: torch.Tensor, labels: torch.Tensor,
 
     # `dist_ap` means distance(anchor, positive)
     # both `dist_ap` and `relative_p_inds` with shape [N, 1]
-    dist_ap, relative_p_inds = torch.max(
-        dist_mat[is_pos].contiguous().view(N, -1), 1, keepdim=True)
+    pos_mask_reshaped = dist_mat[is_pos].contiguous().view(N, -1)
+    if pos_mask_reshaped.size(1) == 0:
+        # No positive pairs found, return zeros
+        dist_ap = torch.zeros(N, 1, device=dist_mat.device)
+        relative_p_inds = torch.zeros(N, 1, dtype=torch.long, device=dist_mat.device)
+    else:
+        dist_ap, relative_p_inds = torch.max(pos_mask_reshaped, 1, keepdim=True)
+
     # `dist_an` means distance(anchor, negative)
     # both `dist_an` and `relative_n_inds` with shape [N, 1]
-    dist_an, relative_n_inds = torch.min(
-        dist_mat[is_neg].contiguous().view(N, -1), 1, keepdim=True)
+    neg_mask_reshaped = dist_mat[is_neg].contiguous().view(N, -1)
+    if neg_mask_reshaped.size(1) == 0:
+        # No negative pairs found, return large distances
+        dist_an = torch.full((N, 1), float('inf'), device=dist_mat.device)
+        relative_n_inds = torch.zeros(N, 1, dtype=torch.long, device=dist_mat.device)
+    else:
+        dist_an, relative_n_inds = torch.min(neg_mask_reshaped, 1, keepdim=True)
     # shape [N]
     dist_ap = dist_ap.squeeze(1)
     dist_an = dist_an.squeeze(1)
@@ -132,16 +143,27 @@ class TripletLoss(nn.Module):
         Returns:
             Triplet loss value
         """
+        # Safety check for batch size
+        if global_feat.size(0) < 2:
+            # Not enough samples for triplet loss, return zero loss
+            return torch.tensor(0.0, device=global_feat.device, requires_grad=True)
+
+        # Check if we have multiple classes
+        unique_labels = torch.unique(labels)
+        if len(unique_labels) < 2:
+            # All samples are from the same class, return zero loss
+            return torch.tensor(0.0, device=global_feat.device, requires_grad=True)
+
         if self.normalize_feature:
             global_feat = F.normalize(global_feat, p=2, dim=1)
-        
+
         if self.distance_metric == 'euclidean':
             dist_mat = euclidean_dist(global_feat, global_feat)
         elif self.distance_metric == 'cosine':
             dist_mat = cosine_dist(global_feat, global_feat)
         else:
             raise ValueError(f"Unsupported distance metric: {self.distance_metric}")
-        
+
         dist_ap, dist_an = hard_example_mining(dist_mat, labels)
         
         # Apply hard factor

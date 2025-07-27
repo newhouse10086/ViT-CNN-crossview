@@ -17,18 +17,20 @@ try:
     criterion = CombinedLoss(num_classes=10)
     
     # Create mock outputs that match expected structure
+    batch_size = 4  # Use larger batch size for triplet loss
     outputs = {
         'satellite': {
-            'predictions': [torch.randn(2, 10), torch.randn(2, 10)],  # List of prediction tensors
-            'features': [torch.randn(2, 512), torch.randn(2, 512)]
+            'predictions': [torch.randn(batch_size, 10), torch.randn(batch_size, 10)],  # List of prediction tensors
+            'features': [torch.randn(batch_size, 512), torch.randn(batch_size, 512)]
         },
         'drone': {
-            'predictions': [torch.randn(2, 10), torch.randn(2, 10)],
-            'features': [torch.randn(2, 512), torch.randn(2, 512)]
+            'predictions': [torch.randn(batch_size, 10), torch.randn(batch_size, 10)],
+            'features': [torch.randn(batch_size, 512), torch.randn(batch_size, 512)]
         }
     }
-    
-    labels = torch.randint(0, 10, (2,))
+
+    # Ensure we have different labels for triplet loss
+    labels = torch.tensor([0, 1, 0, 2])  # Mixed labels
     
     print("Testing loss computation...")
     losses = criterion(outputs, labels)
