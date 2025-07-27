@@ -395,20 +395,6 @@ def train_epoch_with_monitoring(model, dataloader, criterion, optimizer, device,
                 else:
                     outputs = model(sat_images, drone_images)
 
-                # Debug: Check output structure for first batch
-                if batch_idx == 0:
-                    print(f"DEBUG: Batch {batch_idx}")
-                    print(f"  Input batch size: {sat_images.shape[0]}")
-                    print(f"  Labels batch size: {sat_labels.shape[0]}")
-                    if 'satellite' in outputs and 'predictions' in outputs['satellite']:
-                        predictions = outputs['satellite']['predictions']
-                        print(f"  Predictions count: {len(predictions)}")
-                        for i, pred in enumerate(predictions):
-                            if isinstance(pred, torch.Tensor):
-                                print(f"    Pred {i}: {pred.shape}")
-                            else:
-                                print(f"    Pred {i}: {type(pred)}")
-
                 losses = criterion(outputs, sat_labels)
                 total_loss = losses['total']
                 

@@ -219,11 +219,7 @@ class CommunityClusteringModule(nn.Module):
             batch_communities.append(communities)
         
         # Stack batch results
-        print(f"DEBUG: Stacking {len(batch_clustered_features)} batch results")
-        for i, bf in enumerate(batch_clustered_features):
-            print(f"  Batch {i}: {bf.shape}")
         clustered_features = torch.stack(batch_clustered_features)  # (B, num_clusters, target_dim)
-        print(f"DEBUG: Stacked clustered_features shape: {clustered_features.shape}")
         
         return clustered_features, batch_communities
 
@@ -344,47 +340,27 @@ class FSRAViTImproved(nn.Module):
         x = sat_img
         B = x.shape[0]
 
-        # Debug: Check input shapes
-        print(f"DEBUG: Input shapes - sat_img: {sat_img.shape}, drone_img: {drone_img.shape}")
+
         
         # CNN Branch: ResNet18 + dimension reduction
         cnn_features = self.cnn_backbone(x)  # (B, 512, 8, 8)
-        print(f"DEBUG: CNN backbone output: {cnn_features.shape}")
         cnn_features = self.cnn_dim_reduction(cnn_features)  # (B, 100, 8, 8)
-        print(f"DEBUG: CNN reduced output: {cnn_features.shape}")
 
         # ViT Branch: 10x10 patches -> ViT -> spatial features
         vit_features = self.vit_branch(x)  # (B, 100, 8, 8)
-        print(f"DEBUG: ViT output: {vit_features.shape}")
-
-        # Safety check: Ensure batch sizes match
-        if cnn_features.shape[0] != vit_features.shape[0]:
-            print(f"WARNING: Batch size mismatch! CNN: {cnn_features.shape[0]}, ViT: {vit_features.shape[0]}")
-            min_batch = min(cnn_features.shape[0], vit_features.shape[0])
-            cnn_features = cnn_features[:min_batch]
-            vit_features = vit_features[:min_batch]
-            print(f"Fixed to batch size: {min_batch}")
         
         # Feature Fusion: Concat CNN and ViT features
-        print(f"DEBUG: CNN features shape: {cnn_features.shape}")
-        print(f"DEBUG: ViT features shape: {vit_features.shape}")
         fused_features = torch.cat([cnn_features, vit_features], dim=1)  # (B, 200, 8, 8)
-        print(f"DEBUG: Fused features shape: {fused_features.shape}")
         
         # Global average pooling for global classification
         global_feat = F.adaptive_avg_pool2d(fused_features, (1, 1)).view(B, -1)  # (B, 200)
         
         # Global classification
-        print(f"DEBUG: Global feat shape: {global_feat.shape}")
         global_output = self.global_classifier(global_feat)
-        print(f"DEBUG: Global output type: {type(global_output)}, content: {global_output if not isinstance(global_output, torch.Tensor) else 'tensor'}")
         global_pred, global_f = global_output  # Unpack the list
-        print(f"DEBUG: Global pred shape: {global_pred.shape}, global_f shape: {global_f.shape}")
         
         # Community clustering on fused features
-        print(f"DEBUG: Before community clustering - fused_features shape: {fused_features.shape}")
         clustered_features, communities = self.community_clustering(fused_features)  # (B, 3, 256)
-        print(f"DEBUG: After community clustering - clustered_features shape: {clustered_features.shape}")
         
         # Regional classification
         regional_preds = []
@@ -392,66 +368,21 @@ class FSRAViTImproved(nn.Module):
 
         for i, regional_classifier in enumerate(self.regional_classifiers):
             regional_input = clustered_features[:, i, :]  # (B, 256)
-            print(f"DEBUG: Regional {i} input shape: {regional_input.shape}")
             regional_output = regional_classifier(regional_input)
-            print(f"DEBUG: Regional {i} output type: {type(regional_output)}")
-            if isinstance(regional_output, dict):
-                print(f"DEBUG: Regional {i} output is dict with keys: {list(regional_output.keys())}")
-                # Handle dict output - this might be the issue
-                if 'prediction' in regional_output and 'features' in regional_output:
-                    regional_pred = regional_output['prediction']
-                    regional_f = regional_output['features']
-                else:
-                    # Fallback - try to get first two values
-                    values = list(regional_output.values())
-                    regional_pred = values[0] if len(values) > 0 else torch.zeros(regional_input.shape[0], self.num_classes)
-                    regional_f = values[1] if len(values) > 1 else torch.zeros(regional_input.shape[0], self.target_pca_dim)
-            else:
-                regional_pred, regional_f = regional_output  # Unpack the list
-            print(f"DEBUG: Regional {i} pred shape: {regional_pred.shape}, feat shape: {regional_f.shape}")
+            regional_pred, regional_f = regional_output  # Unpack the list
             regional_preds.append(regional_pred)
             regional_feats.append(regional_f)
         
         # Feature fusion for final prediction
-        # Debug: Check tensor shapes before concatenation
-        if global_f.shape[0] != regional_feats[0].shape[0]:
-            print(f"WARNING: Batch size mismatch!")
-            print(f"  global_f shape: {global_f.shape}")
-            for i, rf in enumerate(regional_feats):
-                print(f"  regional_feats[{i}] shape: {rf.shape}")
-            # Fix batch size mismatch by taking minimum
-            min_batch_size = min(global_f.shape[0], min(rf.shape[0] for rf in regional_feats))
-            global_f = global_f[:min_batch_size]
-            regional_feats = [rf[:min_batch_size] for rf in regional_feats]
-
         all_features = torch.cat([global_f] + regional_feats, dim=1)  # (B, final_fusion_dim)
         fused_features_final = self.feature_fusion(all_features)  # (B, fusion_dim)
         
         # Final classification
-        print(f"DEBUG: Final input shape: {fused_features_final.shape}")
         final_output = self.final_classifier(fused_features_final)
-        print(f"DEBUG: Final output type: {type(final_output)}")
-        if isinstance(final_output, dict):
-            print(f"DEBUG: Final output is dict with keys: {list(final_output.keys())}")
-            # Handle dict output
-            if 'prediction' in final_output and 'features' in final_output:
-                final_pred = final_output['prediction']
-                final_f = final_output['features']
-            else:
-                values = list(final_output.values())
-                final_pred = values[0] if len(values) > 0 else torch.zeros(fused_features_final.shape[0], self.num_classes)
-                final_f = values[1] if len(values) > 1 else torch.zeros(fused_features_final.shape[0], self.target_pca_dim)
-        else:
-            final_pred, final_f = final_output  # Unpack the list
-        print(f"DEBUG: Final pred shape: {final_pred.shape}, final_f shape: {final_f.shape}")
+        final_pred, final_f = final_output  # Unpack the list
         
         # Prepare output
         predictions = [global_pred] + regional_preds + [final_pred]
-
-        # Debug: Check predictions list
-        print(f"DEBUG: Predictions list length: {len(predictions)}")
-        for i, pred in enumerate(predictions):
-            print(f"  Pred {i}: type={type(pred)}, shape={pred.shape if hasattr(pred, 'shape') else 'no shape'}")
         
         return {
             'satellite': {
