@@ -124,6 +124,8 @@ def test_simple_fsra():
         train_config = {
             'training': {
                 'learning_rate': 0.01,
+                'weight_decay': 0.0005,
+                'momentum': 0.9,
                 'optimizer': 'sgd'
             }
         }
