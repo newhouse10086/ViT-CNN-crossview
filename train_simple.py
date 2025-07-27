@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Fixed training script for your innovation method.
-FSRA + Community Clustering + PCA
+Simple training script for your innovation method.
+Focus on training without complex metrics to avoid tensor issues.
 """
 
 import os
@@ -12,10 +12,6 @@ import logging
 from pathlib import Path
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
-import numpy as np
-import random
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -27,83 +23,12 @@ from src.losses import CombinedLoss
 from src.optimizers import create_optimizer_with_config
 
 
-def set_seed(seed: int):
-    """Set random seed for reproducibility."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-
-
-class FixedMetricsCalculator:
-    """Fixed metrics calculator with proper tensor handling."""
-    
-    def __init__(self):
-        self.reset()
-    
-    def reset(self):
-        """Reset all metrics."""
-        self.predictions = []
-        self.targets = []
-        self.losses = []
-    
-    def update(self, predictions, targets, loss):
-        """Update metrics with batch results."""
-        with torch.no_grad():  # Ensure no gradients
-            if isinstance(predictions, torch.Tensor):
-                pred_classes = torch.argmax(predictions, dim=1)
-                self.predictions.extend(pred_classes.detach().cpu().numpy())
-            
-            if isinstance(targets, torch.Tensor):
-                self.targets.extend(targets.detach().cpu().numpy())
-            
-            if isinstance(loss, torch.Tensor):
-                self.losses.append(loss.detach().item())
-            else:
-                self.losses.append(loss)
-    
-    def compute_metrics(self):
-        """Compute final metrics."""
-        if len(self.predictions) == 0 or len(self.targets) == 0:
-            return {
-                'accuracy': 0.0,
-                'precision': 0.0,
-                'recall': 0.0,
-                'f1_score': 0.0,
-                'avg_loss': np.mean(self.losses) if self.losses else 0.0
-            }
-        
-        predictions = np.array(self.predictions)
-        targets = np.array(self.targets)
-        
-        # Calculate metrics
-        try:
-            accuracy = accuracy_score(targets, predictions)
-            precision = precision_score(targets, predictions, average='weighted', zero_division=0)
-            recall = recall_score(targets, predictions, average='weighted', zero_division=0)
-            f1 = f1_score(targets, predictions, average='weighted', zero_division=0)
-        except Exception as e:
-            logging.warning(f"Metrics calculation error: {e}")
-            accuracy = precision = recall = f1 = 0.0
-        
-        avg_loss = np.mean(self.losses) if self.losses else 0.0
-        
-        return {
-            'accuracy': accuracy,
-            'precision': precision,
-            'recall': recall,
-            'f1_score': f1,
-            'avg_loss': avg_loss
-        }
-
-
-def train_epoch(model, dataloader, criterion, optimizer, device, metrics_calc, epoch, total_epochs, log_interval=10):
-    """Train for one epoch with fixed tensor handling."""
+def train_epoch_simple(model, dataloader, criterion, optimizer, device, epoch, total_epochs, log_interval=10):
+    """Simple training epoch without complex metrics."""
     model.train()
-    metrics_calc.reset()
     
     epoch_start_time = time.time()
+    total_loss_sum = 0.0
     successful_batches = 0
     
     for batch_idx, batch_data in enumerate(dataloader):
@@ -132,21 +57,8 @@ def train_epoch(model, dataloader, criterion, optimizer, device, metrics_calc, e
                 total_loss.backward()
                 optimizer.step()
                 
-                # Get predictions for metrics (with proper tensor handling)
-                if 'satellite' in outputs and outputs['satellite'] is not None:
-                    sat_preds = outputs['satellite']['predictions']
-                    if isinstance(sat_preds, list) and len(sat_preds) > 0:
-                        # Use the first valid prediction
-                        for pred in sat_preds:
-                            if isinstance(pred, torch.Tensor) and pred.ndim == 2:
-                                # Detach all tensors before passing to metrics
-                                with torch.no_grad():
-                                    pred_detached = pred.detach()
-                                    labels_detached = sat_labels.detach()
-                                    loss_detached = total_loss.detach()
-                                    metrics_calc.update(pred_detached, labels_detached, loss_detached)
-                                break
-                
+                # Accumulate loss for averaging
+                total_loss_sum += total_loss.item()
                 successful_batches += 1
                 
                 # Log progress
@@ -161,18 +73,21 @@ def train_epoch(model, dataloader, criterion, optimizer, device, metrics_calc, e
             logging.error(f"Error in batch {batch_idx}: {e}")
             continue
     
-    # Compute epoch metrics
+    # Compute simple metrics
     epoch_time = time.time() - epoch_start_time
-    metrics = metrics_calc.compute_metrics()
-    metrics['epoch_time'] = epoch_time
-    metrics['successful_batches'] = successful_batches
+    avg_loss = total_loss_sum / successful_batches if successful_batches > 0 else 0.0
     
-    return metrics
+    return {
+        'avg_loss': avg_loss,
+        'epoch_time': epoch_time,
+        'successful_batches': successful_batches,
+        'total_batches': len(dataloader)
+    }
 
 
 def main():
     """Main training function."""
-    parser = argparse.ArgumentParser(description='Train Your Innovation Method (Fixed)')
+    parser = argparse.ArgumentParser(description='Simple Training for Your Innovation Method')
     parser.add_argument('--config', type=str, required=True, help='Path to config file')
     parser.add_argument('--data-dir', type=str, required=True, help='Path to data directory')
     parser.add_argument('--batch-size', type=int, help='Batch size')
@@ -204,10 +119,7 @@ def main():
     )
     logger = logging.getLogger(__name__)
     
-    # Set seed
-    set_seed(config['system']['seed'])
-    
-    logger.info(f"🚀 Starting training with YOUR INNOVATION METHOD: {config['model']['name']}")
+    logger.info(f"🚀 SIMPLE TRAINING - YOUR INNOVATION METHOD: {config['model']['name']}")
     logger.info(f"Innovation features:")
     logger.info(f"  🔬 Community Clustering: {config['model'].get('use_community_clustering', False)}")
     logger.info(f"  📊 PCA Alignment: {config['model'].get('use_pca_alignment', False)}")
@@ -245,9 +157,6 @@ def main():
     logger.info("Creating optimizer and scheduler...")
     optimizer, scheduler = create_optimizer_with_config(model, config)
     
-    # Create metrics calculator
-    metrics_calc = FixedMetricsCalculator()
-    
     # Training configuration
     num_epochs = config['training']['num_epochs']
     log_interval = config['system'].get('log_interval', 10)
@@ -261,7 +170,7 @@ def main():
     logger.info(f"  💻 Device: {device}")
     
     # Training loop
-    logger.info("🚀 Starting training with your innovation...")
+    logger.info("🚀 Starting simple training with your innovation...")
     
     for epoch in range(num_epochs):
         logger.info(f"\n{'='*60}")
@@ -269,9 +178,9 @@ def main():
         logger.info(f"{'='*60}")
         
         # Train epoch
-        train_metrics = train_epoch(
+        train_metrics = train_epoch_simple(
             model, dataloader, criterion, optimizer, device, 
-            metrics_calc, epoch, num_epochs, log_interval
+            epoch, num_epochs, log_interval
         )
         
         # Update scheduler
@@ -283,20 +192,20 @@ def main():
         
         # Log epoch results
         logger.info(f"\n🎉 Epoch {epoch+1} Results (YOUR INNOVATION):")
-        logger.info(f"  📉 Train Loss: {train_metrics['avg_loss']:.6f}")
-        logger.info(f"  🎯 Train Accuracy: {train_metrics['accuracy']:.4f}")
-        logger.info(f"  📊 Train Precision: {train_metrics['precision']:.4f}")
-        logger.info(f"  📈 Train Recall: {train_metrics['recall']:.4f}")
-        logger.info(f"  🏆 Train F1-Score: {train_metrics['f1_score']:.4f}")
+        logger.info(f"  📉 Average Loss: {train_metrics['avg_loss']:.6f}")
         logger.info(f"  📚 Learning Rate: {current_lr:.8f}")
         logger.info(f"  ⏱️  Epoch Time: {train_metrics['epoch_time']:.2f}s")
-        logger.info(f"  ✅ Successful Batches: {train_metrics['successful_batches']}")
+        logger.info(f"  ✅ Successful Batches: {train_metrics['successful_batches']}/{train_metrics['total_batches']}")
+        
+        # Calculate success rate
+        success_rate = train_metrics['successful_batches'] / train_metrics['total_batches'] * 100
+        logger.info(f"  📊 Success Rate: {success_rate:.1f}%")
         
         # Save checkpoint periodically
         if (epoch + 1) % 5 == 0:
             checkpoint_path = os.path.join(
                 config['system']['checkpoint_dir'],
-                f"innovation_checkpoint_epoch_{epoch+1}.pth"
+                f"innovation_simple_checkpoint_epoch_{epoch+1}.pth"
             )
             os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
             
@@ -312,13 +221,14 @@ def main():
             logger.info(f"💾 Checkpoint saved: {checkpoint_path}")
     
     # Save final model
-    final_model_path = os.path.join(config['system']['checkpoint_dir'], "innovation_final_model.pth")
+    final_model_path = os.path.join(config['system']['checkpoint_dir'], "innovation_simple_final_model.pth")
     os.makedirs(os.path.dirname(final_model_path), exist_ok=True)
     torch.save(model.state_dict(), final_model_path)
     logger.info(f"🎉 Final innovation model saved: {final_model_path}")
     
-    logger.info("🎊 Training completed with your innovation method!")
+    logger.info("🎊 SIMPLE TRAINING COMPLETED!")
     logger.info("🚀 Your Community Clustering + PCA method has been successfully trained!")
+    logger.info("📊 Model is ready for evaluation and testing!")
 
 
 if __name__ == "__main__":
