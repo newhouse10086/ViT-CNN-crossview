@@ -404,26 +404,7 @@ def train_epoch_with_monitoring(model, dataloader, criterion, optimizer, device,
                 else:
                     outputs = model(sat_images, drone_images)
 
-                try:
-                    losses = criterion(outputs, sat_labels)
-                except Exception as e:
-                    print(f"DETAILED ERROR DEBUG:")
-                    print(f"  Error: {e}")
-                    print(f"  Error type: {type(e)}")
-                    import traceback
-                    traceback.print_exc()
-
-                    # Debug outputs structure
-                    print(f"  Outputs keys: {list(outputs.keys())}")
-                    for key, value in outputs.items():
-                        print(f"    {key}: type={type(value)}")
-                        if isinstance(value, dict):
-                            print(f"      Sub-keys: {list(value.keys())}")
-
-                    # Debug labels
-                    print(f"  Labels: type={type(sat_labels)}, shape={sat_labels.shape if hasattr(sat_labels, 'shape') else 'no shape'}")
-
-                    raise e
+                losses = criterion(outputs, sat_labels)
                 total_loss = losses['total']
                 
                 total_loss.backward()
@@ -590,7 +571,10 @@ def main():
         
         if scheduler:
             scheduler.step()
-        
+
+        # Get current learning rate
+        current_lr = optimizer.param_groups[0]['lr']
+
         # Print detailed metrics report with memory monitoring
         print_detailed_metrics_with_memory(train_metrics, epoch+1, num_epochs, current_lr)
 
