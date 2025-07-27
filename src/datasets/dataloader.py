@@ -85,11 +85,32 @@ def make_dataloader(config: Dict[str, Any], create_dummy: bool = True) -> Tuple[
     # Check if required view directories exist
     view_names = ['satellite', 'drone'] if views == 2 else ['satellite', 'drone', 'street']
     missing_views = []
-    
+
+    # First check if views are directly in data_dir
+    direct_views_exist = True
     for view in view_names:
         view_path = os.path.join(data_dir, view)
         if not os.path.exists(view_path):
-            missing_views.append(view)
+            direct_views_exist = False
+            break
+
+    # If direct views don't exist, check in train subdirectory
+    if not direct_views_exist:
+        train_dir = os.path.join(data_dir, 'train')
+        if os.path.exists(train_dir):
+            logger.info(f"Views not found in {data_dir}, checking {train_dir}")
+            data_dir = train_dir  # Update data_dir to point to train directory
+
+            for view in view_names:
+                view_path = os.path.join(data_dir, view)
+                if not os.path.exists(view_path):
+                    missing_views.append(view)
+        else:
+            # Neither direct views nor train directory exist
+            for view in view_names:
+                view_path = os.path.join(data_dir, view)
+                if not os.path.exists(view_path):
+                    missing_views.append(view)
     
     if missing_views:
         if create_dummy:
