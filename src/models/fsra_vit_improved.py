@@ -347,7 +347,10 @@ class FSRAViTImproved(nn.Module):
         vit_features = self.vit_branch(x)  # (B, 100, 8, 8)
         
         # Feature Fusion: Concat CNN and ViT features
+        print(f"DEBUG: CNN features shape: {cnn_features.shape}")
+        print(f"DEBUG: ViT features shape: {vit_features.shape}")
         fused_features = torch.cat([cnn_features, vit_features], dim=1)  # (B, 200, 8, 8)
+        print(f"DEBUG: Fused features shape: {fused_features.shape}")
         
         # Global average pooling for global classification
         global_feat = F.adaptive_avg_pool2d(fused_features, (1, 1)).view(B, -1)  # (B, 200)
@@ -357,7 +360,9 @@ class FSRAViTImproved(nn.Module):
         global_pred, global_f = global_output  # Unpack the list
         
         # Community clustering on fused features
+        print(f"DEBUG: Before community clustering - fused_features shape: {fused_features.shape}")
         clustered_features, communities = self.community_clustering(fused_features)  # (B, 3, 256)
+        print(f"DEBUG: After community clustering - clustered_features shape: {clustered_features.shape}")
         
         # Regional classification
         regional_preds = []
