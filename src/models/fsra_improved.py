@@ -34,35 +34,55 @@ class CommunityClusteringModule(nn.Module):
         
     def build_similarity_graph(self, features: torch.Tensor) -> nx.Graph:
         """
-        Build similarity graph from features.
-        
+        Build similarity graph from features with optimization for large batches.
+
         Args:
             features: Feature tensor of shape (H*W, D)
-            
+
         Returns:
             NetworkX graph
         """
-        # Compute pairwise similarities
-        features_norm = F.normalize(features, p=2, dim=1)
-        similarity_matrix = torch.mm(features_norm, features_norm.t())
-        
-        # Convert to numpy for NetworkX (detach to avoid gradient issues)
-        similarity_np = similarity_matrix.detach().cpu().numpy()
-        
-        # Build graph
-        G = nx.Graph()
-        num_nodes = similarity_np.shape[0]
-        
-        # Add nodes
-        for i in range(num_nodes):
-            G.add_node(i)
-        
-        # Add edges based on similarity threshold
-        for i in range(num_nodes):
-            for j in range(i + 1, num_nodes):
-                if similarity_np[i, j] > self.similarity_threshold:
-                    G.add_edge(i, j, weight=similarity_np[i, j])
-        
+        N = features.shape[0]
+
+        # For large feature sets, use sampling to reduce complexity
+        if N > 1000:  # Threshold for optimization
+            # Sample a subset of features for graph construction
+            sample_size = min(500, N)
+            indices = torch.randperm(N)[:sample_size]
+            sampled_features = features[indices]
+
+            # Compute similarities on sampled features
+            features_norm = F.normalize(sampled_features, p=2, dim=1)
+            similarity_matrix = torch.mm(features_norm, features_norm.t())
+
+            # Convert to numpy
+            similarity_np = similarity_matrix.detach().cpu().numpy()
+
+            # Build graph with sampled indices
+            G = nx.Graph()
+            for i in range(sample_size):
+                G.add_node(indices[i].item())
+
+            # Add edges
+            for i in range(sample_size):
+                for j in range(i + 1, sample_size):
+                    if similarity_np[i, j] > self.similarity_threshold:
+                        G.add_edge(indices[i].item(), indices[j].item(), weight=similarity_np[i, j])
+        else:
+            # Original method for smaller feature sets
+            features_norm = F.normalize(features, p=2, dim=1)
+            similarity_matrix = torch.mm(features_norm, features_norm.t())
+            similarity_np = similarity_matrix.detach().cpu().numpy()
+
+            G = nx.Graph()
+            for i in range(N):
+                G.add_node(i)
+
+            for i in range(N):
+                for j in range(i + 1, N):
+                    if similarity_np[i, j] > self.similarity_threshold:
+                        G.add_edge(i, j, weight=similarity_np[i, j])
+
         return G
     
     def community_detection(self, graph: nx.Graph) -> List[List[int]]:
@@ -157,6 +177,9 @@ class CommunityClusteringModule(nn.Module):
 
             # Initialize PCA if needed
             if self.pca is None or self.pca.n_components_ != target_components:
+                # Clean up old PCA to prevent memory leaks
+                if self.pca is not None:
+                    del self.pca
                 self.pca = PCA(n_components=target_components)
                 self.pca.fit(features_np)
 
@@ -206,13 +229,17 @@ class CommunityClusteringModule(nn.Module):
         
         for b in range(B):
             batch_features = features[b]  # (H*W, C)
-            
+
             # Build similarity graph
             graph = self.build_similarity_graph(batch_features)
-            
+
             # Perform community detection
             communities = self.community_detection(graph)
-            
+
+            # Clean up graph to prevent memory leaks
+            graph.clear()
+            del graph
+
             # Aggregate features for each community
             clustered_features = []
             for community in communities:
@@ -222,11 +249,11 @@ class CommunityClusteringModule(nn.Module):
                     # Empty community, use zero features
                     community_features = torch.zeros(C, device=feature_map.device)
                 clustered_features.append(community_features)
-            
+
             # Stack and apply PCA
             clustered_features = torch.stack(clustered_features)  # (num_clusters, C)
             clustered_features = self.apply_pca(clustered_features)  # (num_clusters, target_dim)
-            
+
             batch_clustered_features.append(clustered_features)
             batch_communities.append(communities)
         
