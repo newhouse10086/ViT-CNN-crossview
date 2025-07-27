@@ -219,7 +219,11 @@ class CommunityClusteringModule(nn.Module):
             batch_communities.append(communities)
         
         # Stack batch results
+        print(f"DEBUG: Stacking {len(batch_clustered_features)} batch results")
+        for i, bf in enumerate(batch_clustered_features):
+            print(f"  Batch {i}: {bf.shape}")
         clustered_features = torch.stack(batch_clustered_features)  # (B, num_clusters, target_dim)
+        print(f"DEBUG: Stacked clustered_features shape: {clustered_features.shape}")
         
         return clustered_features, batch_communities
 
@@ -257,11 +261,12 @@ class FSRAViTImproved(nn.Module):
         # CNN Branch: ResNet18 backbone
         self.cnn_backbone = resnet18_backbone(pretrained=use_pretrained)
         
-        # CNN dimension reduction: 512 -> cnn_output_dim
+        # CNN dimension reduction: 512 -> cnn_output_dim + spatial alignment
         self.cnn_dim_reduction = nn.Sequential(
             nn.Conv2d(512, cnn_output_dim, kernel_size=1, bias=False),
             nn.BatchNorm2d(cnn_output_dim),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d((8, 8))  # Ensure 8x8 output to match ViT
         )
         
         # ViT Branch: Vision Transformer
@@ -327,24 +332,38 @@ class FSRAViTImproved(nn.Module):
     def forward(self, sat_img: torch.Tensor, drone_img: torch.Tensor) -> dict:
         """
         Forward pass of FSRA ViT Improved model.
-        
+
         Args:
             sat_img: Satellite image tensor (B, 3, 256, 256)
             drone_img: Drone image tensor (B, 3, 256, 256)
-            
+
         Returns:
             Dictionary containing predictions from different levels
         """
         # Use satellite image for feature extraction (can be extended to both)
         x = sat_img
         B = x.shape[0]
+
+        # Debug: Check input shapes
+        print(f"DEBUG: Input shapes - sat_img: {sat_img.shape}, drone_img: {drone_img.shape}")
         
         # CNN Branch: ResNet18 + dimension reduction
         cnn_features = self.cnn_backbone(x)  # (B, 512, 8, 8)
+        print(f"DEBUG: CNN backbone output: {cnn_features.shape}")
         cnn_features = self.cnn_dim_reduction(cnn_features)  # (B, 100, 8, 8)
-        
+        print(f"DEBUG: CNN reduced output: {cnn_features.shape}")
+
         # ViT Branch: 10x10 patches -> ViT -> spatial features
         vit_features = self.vit_branch(x)  # (B, 100, 8, 8)
+        print(f"DEBUG: ViT output: {vit_features.shape}")
+
+        # Safety check: Ensure batch sizes match
+        if cnn_features.shape[0] != vit_features.shape[0]:
+            print(f"WARNING: Batch size mismatch! CNN: {cnn_features.shape[0]}, ViT: {vit_features.shape[0]}")
+            min_batch = min(cnn_features.shape[0], vit_features.shape[0])
+            cnn_features = cnn_features[:min_batch]
+            vit_features = vit_features[:min_batch]
+            print(f"Fixed to batch size: {min_batch}")
         
         # Feature Fusion: Concat CNN and ViT features
         print(f"DEBUG: CNN features shape: {cnn_features.shape}")
