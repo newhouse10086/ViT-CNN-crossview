@@ -20,12 +20,11 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from src.utils import load_config, setup_logger
+from src.utils import load_config
 from src.models import create_model
 from src.datasets import make_dataloader
 from src.losses import CombinedLoss
 from src.optimizers import create_optimizer_with_config
-from src.visualization import TrainingVisualizer
 
 
 def set_seed(seed: int):
