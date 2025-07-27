@@ -281,6 +281,7 @@ class FSRAImprovedModel(nn.Module):
         )
         
         # Regional classifiers for each cluster
+        # Note: ClassBlock returns features with same dim as input, so we use target_dim
         self.regional_classifiers = nn.ModuleList([
             ClassBlock(
                 input_dim=self.community_clustering.target_dim,
@@ -288,6 +289,9 @@ class FSRAImprovedModel(nn.Module):
                 return_f=True
             ) for _ in range(num_clusters)
         ])
+
+        print(f"Regional classifier input dim: {self.community_clustering.target_dim}")
+        print(f"Expected regional feature output dim: {self.community_clustering.target_dim}")
         
         # Feature fusion for final prediction
         # Calculate fusion dimension dynamically
@@ -337,6 +341,7 @@ class FSRAImprovedModel(nn.Module):
         
         # Community clustering
         clustered_features, communities = self.community_clustering(feature_map)  # (B, num_clusters, target_dim)
+        print(f"Clustered features shape: {clustered_features.shape}")
         
         # Regional classification
         regional_preds = []
