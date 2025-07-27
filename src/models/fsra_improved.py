@@ -290,7 +290,12 @@ class FSRAImprovedModel(nn.Module):
         ])
         
         # Feature fusion for final prediction
+        # Calculate fusion dimension dynamically
+        # global_feat: feature_dim, regional_feats: num_clusters * target_dim
         fusion_dim = feature_dim + num_clusters * self.community_clustering.target_dim
+
+        print(f"Fusion dim calculation: {feature_dim} + {num_clusters} * {self.community_clustering.target_dim} = {fusion_dim}")
+
         self.feature_fusion = nn.Sequential(
             nn.Linear(fusion_dim, feature_dim),
             nn.BatchNorm1d(feature_dim),
@@ -344,7 +349,14 @@ class FSRAImprovedModel(nn.Module):
             regional_feats.append(regional_f)
         
         # Feature fusion
+        print(f"Global feat shape: {global_feat.shape}")
+        for i, rf in enumerate(regional_feats):
+            print(f"Regional feat {i} shape: {rf.shape}")
+
         all_features = torch.cat([global_feat] + regional_feats, dim=1)  # (B, fusion_dim)
+        print(f"All features shape: {all_features.shape}")
+        print(f"Expected fusion input dim: {self.feature_fusion[0].in_features}")
+
         fused_features = self.feature_fusion(all_features)  # (B, feature_dim)
         
         # Final classification
