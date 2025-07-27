@@ -9,6 +9,7 @@ from .vit_cnn_model import make_vit_cnn_model
 from .two_view_model import make_fsra_model
 from .fsra_improved import make_fsra_improved_model
 from .two_view_fsra import make_two_view_fsra_improved
+from .simple_fsra import make_simple_fsra_model
 from .cross_attention import CrossAttentionModel
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,8 @@ def create_model(config: Dict[str, Any]) -> nn.Module:
         return create_fsra_model(config)
     elif model_name.lower() == 'fsra_improved':
         return create_fsra_improved_model(config)
+    elif model_name.lower() == 'simple_fsra':
+        return create_simple_fsra_model(config)
     else:
         raise ValueError(f"Unsupported model type: {model_name}")
 
@@ -322,5 +325,37 @@ def create_fsra_improved_model(config: Dict[str, Any]) -> nn.Module:
         )
     else:
         raise ValueError(f"Unsupported number of views: {views}")
+
+    return model
+
+
+def create_simple_fsra_model(config: Dict[str, Any]) -> nn.Module:
+    """
+    Create Simple FSRA model based on configuration.
+
+    Args:
+        config: Configuration dictionary
+
+    Returns:
+        Simple FSRA model
+    """
+    model_config = config['model']
+    data_config = config['data']
+
+    num_classes = model_config['num_classes']
+    num_regions = model_config.get('num_regions', 4)
+    use_pretrained = model_config.get('use_pretrained_resnet', True)
+    share_weights = model_config.get('share_weights', True)
+    views = data_config['views']
+
+    logger.info(f"Creating Simple FSRA model with {num_classes} classes, {num_regions} regions")
+
+    model = make_simple_fsra_model(
+        num_classes=num_classes,
+        num_regions=num_regions,
+        use_pretrained=use_pretrained,
+        views=views,
+        share_weights=share_weights
+    )
 
     return model
