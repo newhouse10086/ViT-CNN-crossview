@@ -1,0 +1,88 @@
+# Your Innovation Configuration
+# FSRA + Community Clustering + PCA Innovation
+# Based on your research contribution
+
+model:
+  # Model type: "FSRA_IMPROVED" (your innovation)
+  name: "FSRA_IMPROVED"
+  num_classes: 701
+  
+  # Your innovation settings
+  patch_size: 10                    # 10x10 patch division (your innovation)
+  num_final_clusters: 3             # 3 communities (your innovation)
+  feature_dim: 512                  # ResNet output dimension
+  target_pca_dim: 256              # PCA target dimension (your innovation)
+  share_weights: true
+  
+  # Community clustering settings (your innovation)
+  similarity_threshold: 0.5         # For graph construction
+  use_community_clustering: true    # Enable your innovation
+  use_pca_alignment: true          # Enable PCA alignment (your innovation)
+  
+  # Pretrained model settings
+  use_pretrained_resnet: true
+
+data:
+  data_dir: "data"
+  test_dir: "data/test"
+  batch_size: 8
+  num_workers: 4
+  image_height: 256
+  image_width: 256
+  views: 2
+  sample_num: 4
+  pad: 0
+  color_jitter: true
+  random_erasing_prob: 0.1
+
+training:
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.0005
+  momentum: 0.9
+  warm_epochs: 5
+  lr_scheduler_steps: [40, 70]
+  lr_scheduler_gamma: 0.1
+  
+  # Loss weights (following original FSRA paper)
+  triplet_loss_weight: 0.3
+  kl_loss_weight: 0.0
+  use_kl_loss: false
+  alignment_loss_weight: 0.5        # For cross-view alignment
+  
+  # Training settings
+  use_fp16: false
+  use_autocast: false
+  use_data_augmentation: true
+  moving_avg: 1.0
+  optimizer: "sgd"
+  scheduler: "step"
+
+evaluation:
+  eval_interval: 10
+  save_plots: true
+  plot_interval: 10
+  metrics_to_track:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+  save_confusion_matrix: true
+  save_roc_curves: false
+  save_training_curves: true
+
+system:
+  gpu_ids: "0"
+  use_gpu: true
+  seed: 42
+  log_interval: 10
+  save_interval: 10
+  checkpoint_dir: "checkpoints"
+  log_dir: "logs"
+  pretrained_dir: "pretrained"
+  log_level: "INFO"
+  save_logs_to_file: true
+  use_tensorboard: false
+  use_wandb: false
+
+mode: 0  # Training mode
