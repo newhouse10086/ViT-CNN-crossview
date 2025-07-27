@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="1600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .input-box { fill: #f3e5f5; stroke: #4a148c; stroke-width: 2; }
+      .innovation-box { fill: #e1f5fe; stroke: #01579b; stroke-width: 3; }
+      .process-box { fill: #fff3e0; stroke: #e65100; stroke-width: 2; }
+      .output-box { fill: #e8f5e8; stroke: #1b5e20; stroke-width: 2; }
+      .text { font-family: Arial, sans-serif; font-size: 12px; text-anchor: middle; }
+      .title-text { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; text-anchor: middle; }
+      .small-text { font-family: Arial, sans-serif; font-size: 10px; text-anchor: middle; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="600" y="30" class="title-text" font-size="18" fill="#01579b">FSRA_IMPROVED Algorithm Flow Chart</text>
+  <text x="600" y="50" class="text" fill="#666">Community Clustering + PCA Feature Alignment</text>
+  
+  <!-- Input Layer -->
+  <rect x="450" y="80" width="300" height="60" rx="10" class="input-box"/>
+  <text x="600" y="105" class="title-text">Input Images</text>
+  <text x="600" y="120" class="small-text">Satellite &amp; Drone</text>
+  <text x="600" y="135" class="small-text">Shape: (B, 3, 256, 256)</text>
+  
+  <!-- ResNet Backbone -->
+  <rect x="450" y="180" width="300" height="50" rx="10" class="process-box"/>
+  <text x="600" y="200" class="title-text">ResNet18 Backbone</text>
+  <text x="600" y="215" class="small-text">Feature Extraction</text>
+  
+  <!-- Feature Maps -->
+  <rect x="450" y="270" width="300" height="60" rx="10" class="process-box"/>
+  <text x="600" y="295" class="title-text">Feature Maps</text>
+  <text x="600" y="310" class="small-text">Shape: (B, 512, 8, 8)</text>
+  <text x="600" y="325" class="small-text">Scale: 8×8 spatial grid</text>
+  
+  <!-- Feature Reshape -->
+  <rect x="450" y="370" width="300" height="60" rx="10" class="process-box"/>
+  <text x="600" y="395" class="title-text">Reshape &amp; Permute</text>
+  <text x="600" y="410" class="small-text">Shape: (B, 64, 512)</text>
+  <text x="600" y="425" class="small-text">64 spatial locations</text>
+  
+  <!-- Split into two branches -->
+  <!-- Left Branch: Community Clustering -->
+  <rect x="50" y="480" width="350" height="80" rx="10" class="innovation-box"/>
+  <text x="225" y="505" class="title-text">🔬 Community Clustering Module</text>
+  <text x="225" y="520" class="text">Innovation 1: Graph-based Clustering</text>
+  <text x="225" y="535" class="small-text">Per Sample Processing</text>
+  <text x="225" y="550" class="small-text">Input: (64, 512) → Output: (3, 512)</text>
+  
+  <!-- Community Clustering Details -->
+  <rect x="50" y="600" width="160" height="60" rx="5" class="process-box"/>
+  <text x="130" y="620" class="text">Similarity Graph</text>
+  <text x="130" y="635" class="small-text">Shape: (64, 64)</text>
+  <text x="130" y="650" class="small-text">Cosine similarity</text>
+  
+  <rect x="240" y="600" width="160" height="60" rx="5" class="process-box"/>
+  <text x="320" y="620" class="text">Community Detection</text>
+  <text x="320" y="635" class="small-text">Louvain Algorithm</text>
+  <text x="320" y="650" class="small-text">Output: 3 communities</text>
+  
+  <!-- PCA Alignment -->
+  <rect x="50" y="700" width="350" height="80" rx="10" class="innovation-box"/>
+  <text x="225" y="725" class="title-text">📊 PCA Alignment Module</text>
+  <text x="225" y="740" class="text">Innovation 2: Feature Alignment</text>
+  <text x="225" y="755" class="small-text">Input: (3, 512) → Output: (3, 256)</text>
+  <text x="225" y="770" class="small-text">Cross-view consistency</text>
+  
+  <!-- Right Branch: Global Processing -->
+  <rect x="800" y="480" width="300" height="60" rx="10" class="process-box"/>
+  <text x="950" y="505" class="title-text">Global Average Pooling</text>
+  <text x="950" y="520" class="small-text">Shape: (B, 64, 512) → (B, 512)</text>
+  
+  <rect x="800" y="580" width="300" height="50" rx="10" class="process-box"/>
+  <text x="950" y="600" class="title-text">Global Classifier</text>
+  <text x="950" y="615" class="small-text">Input: (512) → Output: (701)</text>
+  
+  <!-- Regional Classifiers -->
+  <rect x="50" y="820" width="350" height="60" rx="10" class="process-box"/>
+  <text x="225" y="845" class="title-text">Regional Classifiers</text>
+  <text x="225" y="860" class="small-text">3 parallel ClassBlocks: (256) → (701)</text>
+  
+  <!-- Feature Fusion -->
+  <rect x="450" y="920" width="300" height="80" rx="10" class="process-box"/>
+  <text x="600" y="945" class="title-text">Feature Fusion</text>
+  <text x="600" y="960" class="small-text">Global: (B, 512) + Regional: (B, 3×256)</text>
+  <text x="600" y="975" class="small-text">Fusion Shape: (B, 1280)</text>
+  <text x="600" y="990" class="small-text">Linear(1280 → 512) + BN + ReLU</text>
+  
+  <!-- Final Classifier -->
+  <rect x="450" y="1040" width="300" height="50" rx="10" class="process-box"/>
+  <text x="600" y="1060" class="title-text">Final Classifier</text>
+  <text x="600" y="1075" class="small-text">Input: (512) → Output: (701)</text>
+  
+  <!-- Multi-level Outputs -->
+  <rect x="400" y="1130" width="400" height="80" rx="10" class="output-box"/>
+  <text x="600" y="1155" class="title-text">Multi-level Outputs</text>
+  <text x="600" y="1170" class="small-text">Global + Regional + Fused Predictions</text>
+  <text x="600" y="1185" class="small-text">Total: 5 prediction levels</text>
+  <text x="600" y="1200" class="small-text">Shape: (B, 701) each</text>
+  
+  <!-- Innovation Highlights Box -->
+  <rect x="50" y="1250" width="500" height="120" rx="10" fill="#f8f9fa" stroke="#6c757d" stroke-width="2"/>
+  <text x="300" y="1275" class="title-text" fill="#01579b">🎯 Innovation Highlights</text>
+  <text x="70" y="1295" class="small-text" fill="#333">✅ 25x Higher Spatial Resolution: 100 vs 4 spatial regions</text>
+  <text x="70" y="1310" class="small-text" fill="#333">✅ Adaptive Clustering: Content-aware vs geometric</text>
+  <text x="70" y="1325" class="small-text" fill="#333">✅ Feature Alignment: Cross-view consistency with PCA</text>
+  <text x="70" y="1340" class="small-text" fill="#333">✅ Parameter Efficiency: 15.1M vs 15.9M (5% reduction)</text>
+  <text x="70" y="1355" class="small-text" fill="#333">✅ Memory Optimization: 1280D vs 2048D fusion (37% reduction)</text>
+  
+  <!-- Technical Specs Box -->
+  <rect x="600" y="1250" width="500" height="120" rx="10" fill="#f8f9fa" stroke="#6c757d" stroke-width="2"/>
+  <text x="850" y="1275" class="title-text" fill="#e65100">⚙️ Technical Specifications</text>
+  <text x="620" y="1295" class="small-text" fill="#333">📊 Computational Complexity: O(64²) per sample</text>
+  <text x="620" y="1310" class="small-text" fill="#333">💾 Memory Usage: ~21KB per sample + 1MB PCA model</text>
+  <text x="620" y="1325" class="small-text" fill="#333">🔬 Community Detection: Louvain algorithm with K-means fallback</text>
+  <text x="620" y="1340" class="small-text" fill="#333">📐 PCA Configuration: Dynamic fitting, target 256D</text>
+  <text x="620" y="1355" class="small-text" fill="#333">🎯 Batch Processing: Per-sample clustering, batch-wise training</text>
+  
+  <!-- Arrows -->
+  <line x1="600" y1="140" x2="600" y2="180" class="arrow"/>
+  <line x1="600" y1="230" x2="600" y2="270" class="arrow"/>
+  <line x1="600" y1="330" x2="600" y2="370" class="arrow"/>
+  
+  <!-- Split arrows -->
+  <line x1="600" y1="430" x2="225" y2="480" class="arrow"/>
+  <line x1="600" y1="430" x2="950" y2="480" class="arrow"/>
+  
+  <!-- Community clustering flow -->
+  <line x1="225" y1="560" x2="130" y2="600" class="arrow"/>
+  <line x1="225" y1="560" x2="320" y2="600" class="arrow"/>
+  <line x1="130" y1="660" x2="225" y2="700" class="arrow"/>
+  <line x1="320" y1="660" x2="225" y2="700" class="arrow"/>
+  <line x1="225" y1="780" x2="225" y2="820" class="arrow"/>
+  
+  <!-- Global flow -->
+  <line x1="950" y1="540" x2="950" y2="580" class="arrow"/>
+  
+  <!-- Fusion arrows -->
+  <line x1="225" y1="880" x2="500" y2="920" class="arrow"/>
+  <line x1="950" y1="630" x2="700" y2="920" class="arrow"/>
+  
+  <!-- Final flow -->
+  <line x1="600" y1="1000" x2="600" y2="1040" class="arrow"/>
+  <line x1="600" y1="1090" x2="600" y2="1130" class="arrow"/>
+  
+</svg>

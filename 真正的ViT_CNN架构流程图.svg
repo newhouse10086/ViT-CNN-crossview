@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1600" height="1400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .input-box { fill: #f3e5f5; stroke: #4a148c; stroke-width: 2; }
+      .cnn-box { fill: #ffebee; stroke: #c62828; stroke-width: 2; }
+      .vit-box { fill: #e8f5e8; stroke: #2e7d32; stroke-width: 2; }
+      .fusion-box { fill: #e1f5fe; stroke: #01579b; stroke-width: 3; }
+      .innovation-box { fill: #fff3e0; stroke: #f57c00; stroke-width: 3; }
+      .output-box { fill: #fce4ec; stroke: #880e4f; stroke-width: 2; }
+      .text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 11px; text-anchor: middle; }
+      .title-text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 13px; font-weight: bold; text-anchor: middle; }
+      .small-text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 9px; text-anchor: middle; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .cnn-arrow { stroke: #c62828; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .vit-arrow { stroke: #2e7d32; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .fusion-arrow { stroke: #01579b; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- 标题 -->
+  <text x="800" y="30" class="title-text" font-size="18" fill="#01579b">真正的ViT+CNN混合架构流程图</text>
+  <text x="800" y="50" class="text" fill="#666">您的创新: ViT (10×10 patches) + CNN (ResNet) + 社区聚类 + PCA对齐</text>
+  
+  <!-- 输入层 -->
+  <rect x="650" y="80" width="300" height="60" rx="10" class="input-box"/>
+  <text x="800" y="105" class="title-text">输入图像</text>
+  <text x="800" y="120" class="small-text">卫星图像 &amp; 无人机图像</text>
+  <text x="800" y="135" class="small-text">形状: (B, 3, 256, 256)</text>
+  
+  <!-- 分支标题 -->
+  <text x="300" y="180" class="title-text" font-size="16" fill="#c62828">CNN分支 (ResNet18)</text>
+  <text x="1300" y="180" class="title-text" font-size="16" fill="#2e7d32">ViT分支 (10×10 Patches)</text>
+  
+  <!-- CNN分支 -->
+  <rect x="50" y="200" width="500" height="400" rx="15" fill="#ffebee" stroke="#c62828" stroke-width="3"/>
+  
+  <!-- ResNet18 Backbone -->
+  <rect x="80" y="230" width="200" height="60" rx="5" class="cnn-box"/>
+  <text x="180" y="255" class="title-text">ResNet18 骨干网络</text>
+  <text x="180" y="270" class="small-text">预训练权重</text>
+  <text x="180" y="285" class="small-text">输出: (B, 512, 8, 8)</text>
+  
+  <!-- CNN Dimension Reduction -->
+  <rect x="80" y="320" width="200" height="80" rx="5" class="cnn-box"/>
+  <text x="180" y="345" class="title-text">维度降维</text>
+  <text x="180" y="360" class="small-text">Conv2d(512→100) + BN + ReLU</text>
+  <text x="180" y="375" class="small-text">输出: (B, 100, 8, 8)</text>
+  <text x="180" y="390" class="small-text">空间尺度: 8×8 = 64个位置</text>
+  
+  <!-- CNN特征说明 -->
+  <rect x="300" y="230" width="220" height="170" rx="10" fill="#f8f9fa" stroke="#c62828" stroke-width="1"/>
+  <text x="410" y="255" class="title-text" fill="#c62828">CNN分支特点</text>
+  <text x="320" y="280" class="small-text" fill="#333">✅ 局部特征提取</text>
+  <text x="320" y="295" class="small-text" fill="#333">✅ 卷积归纳偏置</text>
+  <text x="320" y="310" class="small-text" fill="#333">✅ 空间层次结构</text>
+  <text x="320" y="325" class="small-text" fill="#333">✅ 参数高效</text>
+  <text x="320" y="340" class="small-text" fill="#333">✅ 预训练权重</text>
+  <text x="320" y="355" class="small-text" fill="#333">✅ 8×8空间分辨率</text>
+  <text x="320" y="370" class="small-text" fill="#333">✅ 100维特征表示</text>
+  <text x="320" y="385" class="small-text" fill="#333">✅ 计算效率高</text>
+  
+  <!-- ViT分支 -->
+  <rect x="1050" y="200" width="500" height="400" rx="15" fill="#e8f5e8" stroke="#2e7d32" stroke-width="3"/>
+  
+  <!-- Patch Division -->
+  <rect x="1080" y="230" width="200" height="60" rx="5" class="vit-box"/>
+  <text x="1180" y="255" class="title-text">10×10 Patch分割</text>
+  <text x="1180" y="270" class="small-text">256×256 → 25×25 patches</text>
+  <text x="1180" y="285" class="small-text">每个patch: 10×10×3 = 300维</text>
+  
+  <!-- ViT Transformer -->
+  <rect x="1080" y="320" width="200" height="80" rx="5" class="vit-box"/>
+  <text x="1180" y="345" class="title-text">ViT Transformer</text>
+  <text x="1180" y="360" class="small-text">6层 Transformer Block</text>
+  <text x="1180" y="375" class="small-text">12头自注意力机制</text>
+  <text x="1180" y="390" class="small-text">输出: (B, 625, 768)</text>
+  
+  <!-- ViT Output Processing -->
+  <rect x="1080" y="430" width="200" height="80" rx="5" class="vit-box"/>
+  <text x="1180" y="455" class="title-text">输出处理</text>
+  <text x="1180" y="470" class="small-text">线性投影: 768→100</text>
+  <text x="1180" y="485" class="small-text">重塑: (B,100,25,25)</text>
+  <text x="1180" y="500" class="small-text">自适应池化: (B,100,8,8)</text>
+  
+  <!-- ViT特征说明 -->
+  <rect x="1300" y="230" width="220" height="280" rx="10" fill="#f8f9fa" stroke="#2e7d32" stroke-width="1"/>
+  <text x="1410" y="255" class="title-text" fill="#2e7d32">ViT分支特点</text>
+  <text x="1320" y="280" class="small-text" fill="#333">✅ 全局自注意力</text>
+  <text x="1320" y="295" class="small-text" fill="#333">✅ 长距离依赖</text>
+  <text x="1320" y="310" class="small-text" fill="#333">✅ 位置编码</text>
+  <text x="1320" y="325" class="small-text" fill="#333">✅ 10×10精细patch</text>
+  <text x="1320" y="340" class="small-text" fill="#333">✅ 625个patch位置</text>
+  <text x="1320" y="355" class="small-text" fill="#333">✅ Transformer架构</text>
+  <text x="1320" y="370" class="small-text" fill="#333">✅ 多头注意力</text>
+  <text x="1320" y="385" class="small-text" fill="#333">✅ 全局感受野</text>
+  <text x="1320" y="400" class="small-text" fill="#333">✅ 特征表达能力强</text>
+  <text x="1320" y="415" class="small-text" fill="#333">✅ 空间关系建模</text>
+  <text x="1320" y="430" class="small-text" fill="#333">✅ 100维特征表示</text>
+  <text x="1320" y="445" class="small-text" fill="#333">✅ 与CNN尺度对齐</text>
+  
+  <!-- 特征融合 -->
+  <rect x="600" y="650" width="400" height="100" rx="15" class="fusion-box"/>
+  <text x="800" y="680" class="title-text" font-size="16">特征融合 (Concat)</text>
+  <text x="800" y="700" class="text">CNN: (B, 100, 8, 8) + ViT: (B, 100, 8, 8)</text>
+  <text x="800" y="720" class="text">融合结果: (B, 200, 8, 8)</text>
+  <text x="800" y="740" class="small-text">双分支特征互补，增强表达能力</text>
+  
+  <!-- 创新模块 -->
+  <rect x="200" y="800" width="1200" height="150" rx="15" class="innovation-box"/>
+  <text x="800" y="830" class="title-text" font-size="16" fill="#f57c00">🚀 您的创新模块</text>
+  
+  <!-- 社区聚类 -->
+  <rect x="250" y="860" width="250" height="70" rx="10" class="innovation-box"/>
+  <text x="375" y="885" class="title-text">🔬 社区聚类</text>
+  <text x="375" y="900" class="small-text">输入: (B, 200, 8, 8)</text>
+  <text x="375" y="915" class="small-text">图构建 + Louvain算法</text>
+  
+  <!-- PCA对齐 -->
+  <rect x="550" y="860" width="250" height="70" rx="10" class="innovation-box"/>
+  <text x="675" y="885" class="title-text">📊 PCA对齐</text>
+  <text x="675" y="900" class="small-text">200维 → 256维</text>
+  <text x="675" y="915" class="small-text">跨视角特征一致性</text>
+  
+  <!-- 多层次分类 -->
+  <rect x="850" y="860" width="250" height="70" rx="10" class="innovation-box"/>
+  <text x="975" y="885" class="title-text">🎯 多层次分类</text>
+  <text x="975" y="900" class="small-text">全局 + 区域 + 融合</text>
+  <text x="975" y="915" class="small-text">5个预测层次</text>
+  
+  <!-- 最终输出 -->
+  <rect x="600" y="1000" width="400" height="80" rx="15" class="output-box"/>
+  <text x="800" y="1030" class="title-text" font-size="16">最终输出</text>
+  <text x="800" y="1050" class="text">多层次预测: (B, 701) × 5</text>
+  <text x="800" y="1070" class="small-text">全局 + 3个区域 + 最终融合预测</text>
+  
+  <!-- 技术规格 -->
+  <rect x="200" y="1120" width="1200" height="120" rx="15" fill="#f8f9fa" stroke="#6c757d" stroke-width="2"/>
+  <text x="800" y="1145" class="title-text" font-size="16" fill="#1976d2">⚙️ 技术规格</text>
+  <text x="220" y="1170" class="text" fill="#333">📊 <tspan font-weight="bold">空间分辨率</tspan>: ViT 25×25 patches → 8×8 (625→64位置)</text>
+  <text x="220" y="1190" class="text" fill="#333">🔢 <tspan font-weight="bold">特征维度</tspan>: CNN 100D + ViT 100D = 200D融合特征</text>
+  <text x="220" y="1210" class="text" fill="#333">🧠 <tspan font-weight="bold">模型参数</tspan>: ResNet18 (~11M) + ViT (~9M) ≈ 20M总参数</text>
+  <text x="220" y="1230" class="text" fill="#333">💾 <tspan font-weight="bold">内存需求</tspan>: ~6GB GPU内存 (batch_size=8)</text>
+  
+  <!-- 箭头 -->
+  <!-- 输入到分支 -->
+  <line x1="650" y1="140" x2="300" y2="200" class="cnn-arrow"/>
+  <line x1="950" y1="140" x2="1300" y2="200" class="vit-arrow"/>
+  
+  <!-- CNN分支流程 -->
+  <line x1="180" y1="290" x2="180" y2="320" class="cnn-arrow"/>
+  
+  <!-- ViT分支流程 -->
+  <line x1="1180" y1="290" x2="1180" y2="320" class="vit-arrow"/>
+  <line x1="1180" y1="400" x2="1180" y2="430" class="vit-arrow"/>
+  
+  <!-- 融合箭头 -->
+  <line x1="280" y1="400" x2="650" y2="650" class="fusion-arrow"/>
+  <line x1="1320" y1="510" x2="950" y2="650" class="fusion-arrow"/>
+  
+  <!-- 创新模块流程 -->
+  <line x1="800" y1="750" x2="800" y2="800" class="fusion-arrow"/>
+  <line x1="800" y1="950" x2="800" y2="1000" class="fusion-arrow"/>
+  
+  <!-- 分支标签 -->
+  <text x="450" y="190" class="small-text" fill="#c62828">CNN分支</text>
+  <text x="1150" y="190" class="small-text" fill="#2e7d32">ViT分支</text>
+  <text x="775" y="630" class="small-text" fill="#01579b">特征融合</text>
+  
+</svg>

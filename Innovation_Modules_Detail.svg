@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="1200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .innovation-box { fill: #e1f5fe; stroke: #01579b; stroke-width: 3; }
+      .process-box { fill: #fff3e0; stroke: #e65100; stroke-width: 2; }
+      .decision-box { fill: #fff9c4; stroke: #f57f17; stroke-width: 2; }
+      .output-box { fill: #e8f5e8; stroke: #1b5e20; stroke-width: 2; }
+      .analysis-box { fill: #fce4ec; stroke: #880e4f; stroke-width: 2; }
+      .text { font-family: Arial, sans-serif; font-size: 11px; text-anchor: middle; }
+      .title-text { font-family: Arial, sans-serif; font-size: 13px; font-weight: bold; text-anchor: middle; }
+      .small-text { font-family: Arial, sans-serif; font-size: 9px; text-anchor: middle; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .decision-arrow { stroke: #f57f17; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="700" y="30" class="title-text" font-size="18" fill="#01579b">FSRA_IMPROVED Innovation Modules Detail</text>
+  <text x="700" y="50" class="text" fill="#666">Community Clustering + PCA Alignment Deep Dive</text>
+  
+  <!-- Input -->
+  <rect x="550" y="80" width="300" height="60" rx="10" class="process-box"/>
+  <text x="700" y="105" class="title-text">Feature Map Input</text>
+  <text x="700" y="120" class="small-text">Shape: (B, 64, 512)</text>
+  <text x="700" y="135" class="small-text">B=batch_size, 64=spatial_locations</text>
+  
+  <!-- Per Sample Processing -->
+  <rect x="550" y="180" width="300" height="40" rx="10" class="process-box"/>
+  <text x="700" y="200" class="title-text">Process Each Sample</text>
+  <text x="700" y="215" class="small-text">Loop: b ∈ [0, B-1]</text>
+  
+  <!-- Community Clustering Module -->
+  <rect x="50" y="260" width="600" height="80" rx="15" class="innovation-box"/>
+  <text x="350" y="285" class="title-text" font-size="16">🔬 Community Clustering Module</text>
+  <text x="350" y="305" class="title-text">Innovation 1: Graph-based Clustering</text>
+  <text x="350" y="320" class="text">Input: (64, 512) → Output: (3, 512)</text>
+  <text x="350" y="335" class="small-text">Adaptive region discovery based on feature similarity</text>
+  
+  <!-- Community Clustering Steps -->
+  <rect x="50" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="120" y="400" class="text">Normalize Features</text>
+  <text x="120" y="415" class="small-text">L2 normalization</text>
+  <text x="120" y="430" class="small-text">Shape: (64, 512)</text>
+  
+  <rect x="220" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="290" y="400" class="text">Similarity Matrix</text>
+  <text x="290" y="415" class="small-text">Cosine similarity</text>
+  <text x="290" y="430" class="small-text">Shape: (64, 64)</text>
+  
+  <polygon points="420,380 500,380 520,410 500,440 420,440 400,410" class="decision-box"/>
+  <text x="460" y="405" class="text">Threshold</text>
+  <text x="460" y="420" class="small-text">≥ 0.5?</text>
+  
+  <rect x="550" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="620" y="400" class="text">Community Detection</text>
+  <text x="620" y="415" class="small-text">Louvain Algorithm</text>
+  <text x="620" y="430" class="small-text">Output: Communities</text>
+  
+  <!-- Fallback Decision -->
+  <polygon points="420,480 500,480 520,510 500,540 420,540 400,510" class="decision-box"/>
+  <text x="460" y="505" class="text">Communities</text>
+  <text x="460" y="520" class="small-text">Available?</text>
+  
+  <rect x="300" y="580" width="120" height="50" rx="5" class="process-box"/>
+  <text x="360" y="600" class="text">Louvain</text>
+  <text x="360" y="615" class="small-text">Adaptive</text>
+  
+  <rect x="450" y="580" width="120" height="50" rx="5" class="process-box"/>
+  <text x="510" y="600" class="text">K-means</text>
+  <text x="510" y="615" class="small-text">Fallback K=3</text>
+  
+  <!-- Feature Aggregation -->
+  <rect x="350" y="670" width="160" height="50" rx="5" class="process-box"/>
+  <text x="430" y="690" class="text">Feature Aggregation</text>
+  <text x="430" y="705" class="small-text">Mean pooling: (3, 512)</text>
+  
+  <!-- PCA Alignment Module -->
+  <rect x="750" y="260" width="600" height="80" rx="15" class="innovation-box"/>
+  <text x="1050" y="285" class="title-text" font-size="16">📊 PCA Alignment Module</text>
+  <text x="1050" y="305" class="title-text">Innovation 2: Feature Alignment</text>
+  <text x="1050" y="320" class="text">Input: (3, 512) → Output: (3, 256)</text>
+  <text x="1050" y="335" class="small-text">Cross-view dimensionality consistency</text>
+  
+  <!-- PCA Steps -->
+  <rect x="750" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="820" y="400" class="text">Check Dimensions</text>
+  <text x="820" y="415" class="small-text">Input: (3, 512)</text>
+  <text x="820" y="430" class="small-text">Target: 256</text>
+  
+  <polygon points="920,380 1000,380 1020,410 1000,440 920,440 900,410" class="decision-box"/>
+  <text x="960" y="400" class="text">Sufficient</text>
+  <text x="960" y="415" class="small-text">Samples?</text>
+  <text x="960" y="430" class="small-text">n ≥ 2</text>
+  
+  <rect x="1050" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="1120" y="400" class="text">Dynamic PCA</text>
+  <text x="1120" y="415" class="small-text">n_components =</text>
+  <text x="1120" y="430" class="small-text">min(3, 512, 256)</text>
+  
+  <rect x="1220" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="1290" y="400" class="text">Direct Truncation</text>
+  <text x="1290" y="415" class="small-text">features[:, :256]</text>
+  <text x="1290" y="430" class="small-text">Fallback method</text>
+  
+  <!-- PCA Transform -->
+  <rect x="1050" y="480" width="140" height="50" rx="5" class="process-box"/>
+  <text x="1120" y="500" class="text">PCA Transform</text>
+  <text x="1120" y="515" class="small-text">sklearn.PCA</text>
+  
+  <rect x="1220" y="480" width="140" height="50" rx="5" class="process-box"/>
+  <text x="1290" y="500" class="text">Padding/Truncation</text>
+  <text x="1290" y="515" class="small-text">Ensure target dim</text>
+  
+  <!-- Final Alignment -->
+  <rect x="1100" y="570" width="160" height="50" rx="5" class="output-box"/>
+  <text x="1180" y="590" class="text">Dimension Alignment</text>
+  <text x="1180" y="605" class="small-text">Final: (3, 256)</text>
+  
+  <!-- Complexity Analysis -->
+  <rect x="50" y="780" width="600" height="120" rx="10" class="analysis-box"/>
+  <text x="350" y="805" class="title-text" fill="#880e4f">📈 Computational Complexity Analysis</text>
+  <text x="70" y="825" class="small-text" fill="#333">• Similarity Matrix: O(64²) = 4,096 operations per sample</text>
+  <text x="70" y="840" class="small-text" fill="#333">• Community Detection: O(E×log(V)) where E=edges, V=64 vertices</text>
+  <text x="70" y="855" class="small-text" fill="#333">• PCA Fitting: O(min(n,p)×p²) where n=3, p=512</text>
+  <text x="70" y="870" class="small-text" fill="#333">• Total per sample: ~20K operations</text>
+  <text x="70" y="885" class="small-text" fill="#333">• Batch complexity: B × 20K operations (linear scaling)</text>
+  
+  <!-- Memory Analysis -->
+  <rect x="750" y="780" width="600" height="120" rx="10" class="analysis-box"/>
+  <text x="1050" y="805" class="title-text" fill="#880e4f">💾 Memory Usage Analysis</text>
+  <text x="770" y="825" class="small-text" fill="#333">• Similarity Matrix: 64×64×4 = 16KB per sample</text>
+  <text x="770" y="840" class="small-text" fill="#333">• NetworkX Graph: ~5KB per sample (temporary)</text>
+  <text x="770" y="855" class="small-text" fill="#333">• PCA Model: ~1MB per instance (shared)</text>
+  <text x="770" y="870" class="small-text" fill="#333">• Total per batch: B×(16KB + 5KB) + 1MB</text>
+  <text x="770" y="885" class="small-text" fill="#333">• Memory optimization: Graph cleanup after each sample</text>
+  
+  <!-- Arrows -->
+  <line x1="700" y1="140" x2="700" y2="180" class="arrow"/>
+  <line x1="700" y1="220" x2="350" y2="260" class="arrow"/>
+  <line x1="700" y1="220" x2="1050" y2="260" class="arrow"/>
+  
+  <!-- Community clustering flow -->
+  <line x1="350" y1="340" x2="120" y2="380" class="arrow"/>
+  <line x1="120" y1="440" x2="290" y2="380" class="arrow"/>
+  <line x1="290" y1="440" x2="460" y2="380" class="arrow"/>
+  <line x1="460" y1="440" x2="620" y2="380" class="arrow"/>
+  <line x1="620" y1="440" x2="460" y2="480" class="arrow"/>
+  
+  <!-- Decision arrows -->
+  <line x1="460" y1="540" x2="360" y2="580" class="decision-arrow"/>
+  <line x1="460" y1="540" x2="510" y2="580" class="decision-arrow"/>
+  <line x1="360" y1="630" x2="430" y2="670" class="arrow"/>
+  <line x1="510" y1="630" x2="430" y2="670" class="arrow"/>
+  
+  <!-- PCA flow -->
+  <line x1="1050" y1="340" x2="820" y2="380" class="arrow"/>
+  <line x1="820" y1="440" x2="960" y2="380" class="arrow"/>
+  <line x1="960" y1="440" x2="1120" y2="380" class="decision-arrow"/>
+  <line x1="960" y1="440" x2="1290" y2="380" class="decision-arrow"/>
+  <line x1="1120" y1="440" x2="1120" y2="480" class="arrow"/>
+  <line x1="1290" y1="440" x2="1290" y2="480" class="arrow"/>
+  <line x1="1120" y1="530" x2="1180" y2="570" class="arrow"/>
+  <line x1="1290" y1="530" x2="1180" y2="570" class="arrow"/>
+  
+  <!-- Connection between modules -->
+  <line x1="430" y1="720" x2="1050" y2="340" class="arrow" stroke="#01579b" stroke-width="3"/>
+  
+  <!-- Decision labels -->
+  <text x="380" y="560" class="small-text" fill="#f57f17">Yes</text>
+  <text x="530" y="560" class="small-text" fill="#f57f17">No</text>
+  <text x="1040" y="400" class="small-text" fill="#f57f17">Yes</text>
+  <text x="1200" y="400" class="small-text" fill="#f57f17">No</text>
+  
+</svg>

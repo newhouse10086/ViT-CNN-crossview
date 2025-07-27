@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .step-box { fill: #e3f2fd; stroke: #1976d2; stroke-width: 2; }
+      .data-box { fill: #f3e5f5; stroke: #7b1fa2; stroke-width: 2; }
+      .operation-box { fill: #fff3e0; stroke: #f57c00; stroke-width: 2; }
+      .result-box { fill: #e8f5e8; stroke: #388e3c; stroke-width: 2; }
+      .text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 12px; text-anchor: middle; }
+      .title-text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 14px; font-weight: bold; text-anchor: middle; }
+      .small-text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 10px; text-anchor: middle; }
+      .code-text { font-family: "Consolas", "Monaco", monospace; font-size: 10px; text-anchor: middle; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- 标题 -->
+  <text x="700" y="30" class="title-text" font-size="18" fill="#1976d2">Reshape &amp; Permute 操作详解</text>
+  <text x="700" y="50" class="text" fill="#666">特征图维度变换的详细过程</text>
+  
+  <!-- 步骤1: 原始特征图 -->
+  <rect x="50" y="100" width="300" height="120" rx="10" class="data-box"/>
+  <text x="200" y="125" class="title-text">步骤1: 原始特征图</text>
+  <text x="200" y="145" class="text">ResNet18输出</text>
+  <text x="200" y="165" class="small-text">形状: (B, 512, 8, 8)</text>
+  <text x="200" y="180" class="small-text">B = 批次大小</text>
+  <text x="200" y="195" class="small-text">512 = 特征通道数</text>
+  <text x="200" y="210" class="small-text">8×8 = 空间维度</text>
+  
+  <!-- 可视化原始特征图 -->
+  <rect x="80" y="250" width="240" height="120" rx="5" fill="#f8f9fa" stroke="#6c757d" stroke-width="1"/>
+  <text x="200" y="270" class="small-text" fill="#333">特征图可视化 (简化)</text>
+  
+  <!-- 绘制8x8网格 -->
+  <g stroke="#999" stroke-width="1" fill="none">
+    <line x1="100" y1="280" x2="300" y2="280"/>
+    <line x1="100" y1="305" x2="300" y2="305"/>
+    <line x1="100" y1="330" x2="300" y2="330"/>
+    <line x1="100" y1="355" x2="300" y2="355"/>
+    
+    <line x1="100" y1="280" x2="100" y2="355"/>
+    <line x1="125" y1="280" x2="125" y2="355"/>
+    <line x1="150" y1="280" x2="150" y2="355"/>
+    <line x1="175" y1="280" x2="175" y2="355"/>
+    <line x1="200" y1="280" x2="200" y2="355"/>
+    <line x1="225" y1="280" x2="225" y2="355"/>
+    <line x1="250" y1="280" x2="250" y2="355"/>
+    <line x1="275" y1="280" x2="275" y2="355"/>
+    <line x1="300" y1="280" x2="300" y2="355"/>
+  </g>
+  
+  <text x="200" y="295" class="small-text" fill="#666">8×8 = 64个空间位置</text>
+  <text x="200" y="320" class="small-text" fill="#666">每个位置有512维特征</text>
+  <text x="200" y="345" class="small-text" fill="#666">总计: 64 × 512 = 32,768个特征值</text>
+  
+  <!-- 步骤2: Reshape操作 -->
+  <rect x="400" y="100" width="300" height="120" rx="10" class="operation-box"/>
+  <text x="550" y="125" class="title-text">步骤2: Reshape操作</text>
+  <text x="550" y="145" class="text">空间维度展平</text>
+  <text x="550" y="165" class="code-text">feature_map.view(B, 512, 64)</text>
+  <text x="550" y="185" class="small-text">将8×8空间网格展平为64个位置</text>
+  <text x="550" y="200" class="small-text">形状变化: (B,512,8,8) → (B,512,64)</text>
+  
+  <!-- Reshape可视化 -->
+  <rect x="430" y="250" width="240" height="120" rx="5" fill="#fff8e1" stroke="#f57c00" stroke-width="1"/>
+  <text x="550" y="270" class="small-text" fill="#333">Reshape过程可视化</text>
+  
+  <!-- 展平过程 -->
+  <rect x="450" y="280" width="20" height="15" fill="#ffcc80" stroke="#f57c00"/>
+  <rect x="475" y="280" width="20" height="15" fill="#ffcc80" stroke="#f57c00"/>
+  <rect x="500" y="280" width="20" height="15" fill="#ffcc80" stroke="#f57c00"/>
+  <text x="550" y="292" class="small-text">...</text>
+  <rect x="580" y="280" width="20" height="15" fill="#ffcc80" stroke="#f57c00"/>
+  <rect x="605" y="280" width="20" height="15" fill="#ffcc80" stroke="#f57c00"/>
+  <rect x="630" y="280" width="20" height="15" fill="#ffcc80" stroke="#f57c00"/>
+  
+  <text x="550" y="315" class="small-text" fill="#666">64个空间位置 (线性排列)</text>
+  <text x="550" y="330" class="small-text" fill="#666">每个位置仍保持512维特征</text>
+  <text x="550" y="345" class="small-text" fill="#666">数据内容不变，只改变形状</text>
+  
+  <!-- 步骤3: Permute操作 -->
+  <rect x="750" y="100" width="300" height="120" rx="10" class="operation-box"/>
+  <text x="900" y="125" class="title-text">步骤3: Permute操作</text>
+  <text x="900" y="145" class="text">维度顺序交换</text>
+  <text x="900" y="165" class="code-text">reshaped.permute(0, 2, 1)</text>
+  <text x="900" y="185" class="small-text">交换维度1和维度2的位置</text>
+  <text x="900" y="200" class="small-text">形状变化: (B,512,64) → (B,64,512)</text>
+  
+  <!-- Permute可视化 -->
+  <rect x="780" y="250" width="240" height="120" rx="5" fill="#fff8e1" stroke="#f57c00" stroke-width="1"/>
+  <text x="900" y="270" class="small-text" fill="#333">Permute过程可视化</text>
+  
+  <!-- 维度交换示意 -->
+  <text x="820" y="290" class="small-text" fill="#666">交换前: (B, 512, 64)</text>
+  <text x="820" y="305" class="small-text" fill="#666">维度0: B (批次)</text>
+  <text x="820" y="320" class="small-text" fill="#666">维度1: 512 (特征)</text>
+  <text x="820" y="335" class="small-text" fill="#666">维度2: 64 (位置)</text>
+  
+  <text x="980" y="290" class="small-text" fill="#666">交换后: (B, 64, 512)</text>
+  <text x="980" y="305" class="small-text" fill="#666">维度0: B (批次)</text>
+  <text x="980" y="320" class="small-text" fill="#666">维度1: 64 (位置)</text>
+  <text x="980" y="335" class="small-text" fill="#666">维度2: 512 (特征)</text>
+  
+  <!-- 步骤4: 最终结果 -->
+  <rect x="1100" y="100" width="250" height="120" rx="10" class="result-box"/>
+  <text x="1225" y="125" class="title-text">步骤4: 最终结果</text>
+  <text x="1225" y="145" class="text">适合处理的格式</text>
+  <text x="1225" y="165" class="small-text">形状: (B, 64, 512)</text>
+  <text x="1225" y="180" class="small-text">64个空间位置</text>
+  <text x="1225" y="195" class="small-text">每个位置512维特征向量</text>
+  <text x="1225" y="210" class="small-text">便于逐位置处理</text>
+  
+  <!-- 为什么需要这样做 -->
+  <rect x="200" y="420" width="800" height="150" rx="15" fill="#e8f5e8" stroke="#4caf50" stroke-width="2"/>
+  <text x="600" y="445" class="title-text" font-size="16" fill="#2e7d32">🤔 为什么需要Reshape和Permute？</text>
+  
+  <text x="220" y="470" class="text" fill="#333">1. 🎯 <tspan font-weight="bold">适配社区聚类算法</tspan></text>
+  <text x="240" y="485" class="small-text" fill="#666">• 社区聚类需要处理每个空间位置的特征向量</text>
+  <text x="240" y="500" class="small-text" fill="#666">• 原始(B,512,8,8)格式不便于逐位置计算相似度</text>
+  
+  <text x="220" y="520" class="text" fill="#333">2. 📊 <tspan font-weight="bold">便于相似度计算</tspan></text>
+  <text x="240" y="535" class="small-text" fill="#666">• (B,64,512)格式下，每行是一个位置的512维特征</text>
+  <text x="240" y="550" class="small-text" fill="#666">• 可以直接计算64×64的相似度矩阵</text>
+  
+  <!-- 代码示例 -->
+  <rect x="200" y="600" width="800" height="150" rx="15" fill="#f5f5f5" stroke="#757575" stroke-width="2"/>
+  <text x="600" y="625" class="title-text" font-size="16" fill="#424242">💻 代码示例</text>
+  
+  <text x="220" y="650" class="code-text" fill="#333"># 原始特征图</text>
+  <text x="220" y="665" class="code-text" fill="#333">feature_map = torch.randn(B, 512, 8, 8)  # ResNet输出</text>
+  
+  <text x="220" y="685" class="code-text" fill="#333"># Reshape: 展平空间维度</text>
+  <text x="220" y="700" class="code-text" fill="#333">reshaped = feature_map.view(B, 512, 64)  # 8*8=64</text>
+  
+  <text x="220" y="720" class="code-text" fill="#333"># Permute: 交换维度顺序</text>
+  <text x="220" y="735" class="code-text" fill="#333">features = reshaped.permute(0, 2, 1)  # (B, 64, 512)</text>
+  
+  <!-- 箭头 -->
+  <line x1="350" y1="160" x2="400" y2="160" class="arrow"/>
+  <line x1="700" y1="160" x2="750" y2="160" class="arrow"/>
+  <line x1="1050" y1="160" x2="1100" y2="160" class="arrow"/>
+  
+  <!-- 标签 -->
+  <text x="375" y="145" class="small-text" fill="#f57c00">Reshape</text>
+  <text x="725" y="145" class="small-text" fill="#f57c00">Permute</text>
+  <text x="1075" y="145" class="small-text" fill="#4caf50">完成</text>
+  
+</svg>

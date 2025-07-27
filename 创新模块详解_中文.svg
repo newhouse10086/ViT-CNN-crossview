@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="1200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .innovation-box { fill: #e1f5fe; stroke: #01579b; stroke-width: 3; }
+      .process-box { fill: #fff3e0; stroke: #e65100; stroke-width: 2; }
+      .decision-box { fill: #fff9c4; stroke: #f57f17; stroke-width: 2; }
+      .output-box { fill: #e8f5e8; stroke: #1b5e20; stroke-width: 2; }
+      .analysis-box { fill: #fce4ec; stroke: #880e4f; stroke-width: 2; }
+      .text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 11px; text-anchor: middle; }
+      .title-text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 13px; font-weight: bold; text-anchor: middle; }
+      .small-text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 9px; text-anchor: middle; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .decision-arrow { stroke: #f57f17; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- 标题 -->
+  <text x="700" y="30" class="title-text" font-size="18" fill="#01579b">FSRA_IMPROVED 创新模块详解</text>
+  <text x="700" y="50" class="text" fill="#666">社区聚类 + PCA对齐 深度剖析</text>
+  
+  <!-- 输入 -->
+  <rect x="550" y="80" width="300" height="60" rx="10" class="process-box"/>
+  <text x="700" y="105" class="title-text">特征图输入</text>
+  <text x="700" y="120" class="small-text">形状: (B, 64, 512)</text>
+  <text x="700" y="135" class="small-text">B=批次大小, 64=空间位置</text>
+  
+  <!-- 逐样本处理 -->
+  <rect x="550" y="180" width="300" height="40" rx="10" class="process-box"/>
+  <text x="700" y="200" class="title-text">逐样本处理</text>
+  <text x="700" y="215" class="small-text">循环: b ∈ [0, B-1]</text>
+  
+  <!-- 社区聚类模块 -->
+  <rect x="50" y="260" width="600" height="80" rx="15" class="innovation-box"/>
+  <text x="350" y="285" class="title-text" font-size="16">🔬 社区聚类模块</text>
+  <text x="350" y="305" class="title-text">创新点1: 基于图的聚类</text>
+  <text x="350" y="320" class="text">输入: (64, 512) → 输出: (3, 512)</text>
+  <text x="350" y="335" class="small-text">基于特征相似度的自适应区域发现</text>
+  
+  <!-- 社区聚类步骤 -->
+  <rect x="50" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="120" y="400" class="text">特征归一化</text>
+  <text x="120" y="415" class="small-text">L2归一化</text>
+  <text x="120" y="430" class="small-text">形状: (64, 512)</text>
+  
+  <rect x="220" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="290" y="400" class="text">相似度矩阵</text>
+  <text x="290" y="415" class="small-text">余弦相似度</text>
+  <text x="290" y="430" class="small-text">形状: (64, 64)</text>
+  
+  <polygon points="420,380 500,380 520,410 500,440 420,440 400,410" class="decision-box"/>
+  <text x="460" y="405" class="text">阈值判断</text>
+  <text x="460" y="420" class="small-text">≥ 0.5?</text>
+  
+  <rect x="550" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="620" y="400" class="text">社区检测</text>
+  <text x="620" y="415" class="small-text">Louvain算法</text>
+  <text x="620" y="430" class="small-text">输出: 社区列表</text>
+  
+  <!-- 后备决策 -->
+  <polygon points="420,480 500,480 520,510 500,540 420,540 400,510" class="decision-box"/>
+  <text x="460" y="505" class="text">社区检测</text>
+  <text x="460" y="520" class="small-text">成功?</text>
+  
+  <rect x="300" y="580" width="120" height="50" rx="5" class="process-box"/>
+  <text x="360" y="600" class="text">Louvain聚类</text>
+  <text x="360" y="615" class="small-text">自适应</text>
+  
+  <rect x="450" y="580" width="120" height="50" rx="5" class="process-box"/>
+  <text x="510" y="600" class="text">K-means聚类</text>
+  <text x="510" y="615" class="small-text">后备方案K=3</text>
+  
+  <!-- 特征聚合 -->
+  <rect x="350" y="670" width="160" height="50" rx="5" class="process-box"/>
+  <text x="430" y="690" class="text">特征聚合</text>
+  <text x="430" y="705" class="small-text">均值池化: (3, 512)</text>
+  
+  <!-- PCA对齐模块 -->
+  <rect x="750" y="260" width="600" height="80" rx="15" class="innovation-box"/>
+  <text x="1050" y="285" class="title-text" font-size="16">📊 PCA对齐模块</text>
+  <text x="1050" y="305" class="title-text">创新点2: 特征对齐</text>
+  <text x="1050" y="320" class="text">输入: (3, 512) → 输出: (3, 256)</text>
+  <text x="1050" y="335" class="small-text">跨视角维度一致性</text>
+  
+  <!-- PCA步骤 -->
+  <rect x="750" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="820" y="400" class="text">维度检查</text>
+  <text x="820" y="415" class="small-text">输入: (3, 512)</text>
+  <text x="820" y="430" class="small-text">目标: 256</text>
+  
+  <polygon points="920,380 1000,380 1020,410 1000,440 920,440 900,410" class="decision-box"/>
+  <text x="960" y="400" class="text">样本充足</text>
+  <text x="960" y="415" class="small-text">判断?</text>
+  <text x="960" y="430" class="small-text">n ≥ 2</text>
+  
+  <rect x="1050" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="1120" y="400" class="text">动态PCA</text>
+  <text x="1120" y="415" class="small-text">组件数 =</text>
+  <text x="1120" y="430" class="small-text">min(3, 512, 256)</text>
+  
+  <rect x="1220" y="380" width="140" height="60" rx="5" class="process-box"/>
+  <text x="1290" y="400" class="text">直接截断</text>
+  <text x="1290" y="415" class="small-text">特征[:, :256]</text>
+  <text x="1290" y="430" class="small-text">后备方法</text>
+  
+  <!-- PCA变换 -->
+  <rect x="1050" y="480" width="140" height="50" rx="5" class="process-box"/>
+  <text x="1120" y="500" class="text">PCA变换</text>
+  <text x="1120" y="515" class="small-text">sklearn.PCA</text>
+  
+  <rect x="1220" y="480" width="140" height="50" rx="5" class="process-box"/>
+  <text x="1290" y="500" class="text">填充/截断</text>
+  <text x="1290" y="515" class="small-text">确保目标维度</text>
+  
+  <!-- 最终对齐 -->
+  <rect x="1100" y="570" width="160" height="50" rx="5" class="output-box"/>
+  <text x="1180" y="590" class="text">维度对齐</text>
+  <text x="1180" y="605" class="small-text">最终: (3, 256)</text>
+  
+  <!-- 复杂度分析 -->
+  <rect x="50" y="780" width="600" height="120" rx="10" class="analysis-box"/>
+  <text x="350" y="805" class="title-text" fill="#880e4f">📈 计算复杂度分析</text>
+  <text x="70" y="825" class="small-text" fill="#333">• 相似度矩阵: O(64²) = 4,096 次操作/样本</text>
+  <text x="70" y="840" class="small-text" fill="#333">• 社区检测: O(E×log(V)) 其中E=边数, V=64个顶点</text>
+  <text x="70" y="855" class="small-text" fill="#333">• PCA拟合: O(min(n,p)×p²) 其中n=3, p=512</text>
+  <text x="70" y="870" class="small-text" fill="#333">• 每样本总计: ~20K次操作</text>
+  <text x="70" y="885" class="small-text" fill="#333">• 批次复杂度: B × 20K次操作 (线性扩展)</text>
+  
+  <!-- 内存分析 -->
+  <rect x="750" y="780" width="600" height="120" rx="10" class="analysis-box"/>
+  <text x="1050" y="805" class="title-text" fill="#880e4f">💾 内存使用分析</text>
+  <text x="770" y="825" class="small-text" fill="#333">• 相似度矩阵: 64×64×4 = 16KB/样本</text>
+  <text x="770" y="840" class="small-text" fill="#333">• NetworkX图: ~5KB/样本 (临时)</text>
+  <text x="770" y="855" class="small-text" fill="#333">• PCA模型: ~1MB/实例 (共享)</text>
+  <text x="770" y="870" class="small-text" fill="#333">• 每批次总计: B×(16KB + 5KB) + 1MB</text>
+  <text x="770" y="885" class="small-text" fill="#333">• 内存优化: 每样本处理后清理图对象</text>
+  
+  <!-- 箭头 -->
+  <line x1="700" y1="140" x2="700" y2="180" class="arrow"/>
+  <line x1="700" y1="220" x2="350" y2="260" class="arrow"/>
+  <line x1="700" y1="220" x2="1050" y2="260" class="arrow"/>
+  
+  <!-- 社区聚类流程 -->
+  <line x1="350" y1="340" x2="120" y2="380" class="arrow"/>
+  <line x1="120" y1="440" x2="290" y2="380" class="arrow"/>
+  <line x1="290" y1="440" x2="460" y2="380" class="arrow"/>
+  <line x1="460" y1="440" x2="620" y2="380" class="arrow"/>
+  <line x1="620" y1="440" x2="460" y2="480" class="arrow"/>
+  
+  <!-- 决策箭头 -->
+  <line x1="460" y1="540" x2="360" y2="580" class="decision-arrow"/>
+  <line x1="460" y1="540" x2="510" y2="580" class="decision-arrow"/>
+  <line x1="360" y1="630" x2="430" y2="670" class="arrow"/>
+  <line x1="510" y1="630" x2="430" y2="670" class="arrow"/>
+  
+  <!-- PCA流程 -->
+  <line x1="1050" y1="340" x2="820" y2="380" class="arrow"/>
+  <line x1="820" y1="440" x2="960" y2="380" class="arrow"/>
+  <line x1="960" y1="440" x2="1120" y2="380" class="decision-arrow"/>
+  <line x1="960" y1="440" x2="1290" y2="380" class="decision-arrow"/>
+  <line x1="1120" y1="440" x2="1120" y2="480" class="arrow"/>
+  <line x1="1290" y1="440" x2="1290" y2="480" class="arrow"/>
+  <line x1="1120" y1="530" x2="1180" y2="570" class="arrow"/>
+  <line x1="1290" y1="530" x2="1180" y2="570" class="arrow"/>
+  
+  <!-- 模块间连接 -->
+  <line x1="430" y1="720" x2="1050" y2="340" class="arrow" stroke="#01579b" stroke-width="3"/>
+  
+  <!-- 决策标签 -->
+  <text x="380" y="560" class="small-text" fill="#f57f17">是</text>
+  <text x="530" y="560" class="small-text" fill="#f57f17">否</text>
+  <text x="1040" y="400" class="small-text" fill="#f57f17">是</text>
+  <text x="1200" y="400" class="small-text" fill="#f57f17">否</text>
+  
+</svg>

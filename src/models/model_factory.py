@@ -11,6 +11,7 @@ from .fsra_improved import make_fsra_improved_model
 from .two_view_fsra import make_two_view_fsra_improved
 from .simple_fsra import make_simple_fsra_model
 from .cross_attention import CrossAttentionModel
+from .fsra_vit_improved import FSRAViTImproved
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,8 @@ def create_model(config: Dict[str, Any]) -> nn.Module:
         return create_fsra_model(config)
     elif model_name.lower() == 'fsra_improved':
         return create_fsra_improved_model(config)
+    elif model_name.lower() == 'fsra_vit_improved':
+        return create_fsra_vit_improved_model(config)
     elif model_name.lower() == 'simple_fsra':
         return create_simple_fsra_model(config)
     else:
@@ -356,6 +359,51 @@ def create_simple_fsra_model(config: Dict[str, Any]) -> nn.Module:
         use_pretrained=use_pretrained,
         views=views,
         share_weights=share_weights
+    )
+
+    return model
+
+
+def create_fsra_vit_improved_model(config: Dict[str, Any]) -> nn.Module:
+    """
+    Create FSRA ViT Improved model - True ViT+CNN hybrid architecture.
+
+    Your Innovation:
+    - ViT Branch: 10x10 patches -> ViT Transformer
+    - CNN Branch: ResNet18 -> Dimension reduction
+    - Fusion: Concat ViT + CNN features
+    - Community Clustering + PCA Alignment
+
+    Args:
+        config: Configuration dictionary
+
+    Returns:
+        FSRA ViT Improved model
+    """
+    model_config = config['model']
+
+    num_classes = model_config['num_classes']
+    num_clusters = model_config.get('num_final_clusters', 3)
+    patch_size = model_config.get('patch_size', 10)
+    cnn_output_dim = model_config.get('cnn_output_dim', 100)
+    vit_output_dim = model_config.get('vit_output_dim', 100)
+    target_pca_dim = model_config.get('target_pca_dim', 256)
+    use_pretrained = model_config.get('use_pretrained', True)
+
+    logger.info(f"Creating FSRA ViT Improved model with {num_classes} classes, {num_clusters} clusters")
+    logger.info(f"  Patch size: {patch_size}x{patch_size}")
+    logger.info(f"  CNN output dim: {cnn_output_dim}")
+    logger.info(f"  ViT output dim: {vit_output_dim}")
+    logger.info(f"  PCA target dim: {target_pca_dim}")
+
+    model = FSRAViTImproved(
+        num_classes=num_classes,
+        num_clusters=num_clusters,
+        patch_size=patch_size,
+        cnn_output_dim=cnn_output_dim,
+        vit_output_dim=vit_output_dim,
+        target_pca_dim=target_pca_dim,
+        use_pretrained=use_pretrained
     )
 
     return model

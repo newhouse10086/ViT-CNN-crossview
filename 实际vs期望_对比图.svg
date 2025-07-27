@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1600" height="1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .actual-box { fill: #ffebee; stroke: #c62828; stroke-width: 2; }
+      .expected-box { fill: #e8f5e8; stroke: #2e7d32; stroke-width: 2; }
+      .problem-box { fill: #fff3e0; stroke: #f57c00; stroke-width: 2; }
+      .text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 11px; text-anchor: middle; }
+      .title-text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 13px; font-weight: bold; text-anchor: middle; }
+      .small-text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 9px; text-anchor: middle; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- 标题 -->
+  <text x="800" y="30" class="title-text" font-size="18" fill="#1976d2">实际实现 vs 期望实现 对比</text>
+  <text x="800" y="50" class="text" fill="#666">当前代码 vs 您的创新设想</text>
+  
+  <!-- 输入 -->
+  <rect x="650" y="80" width="300" height="50" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="800" y="100" class="title-text">输入图像</text>
+  <text x="800" y="115" class="small-text">形状: (B, 3, 256, 256)</text>
+  
+  <!-- 分支标题 -->
+  <text x="300" y="170" class="title-text" font-size="16" fill="#c62828">❌ 实际实现 (当前代码)</text>
+  <text x="1300" y="170" class="title-text" font-size="16" fill="#2e7d32">✅ 期望实现 (您的设想)</text>
+  
+  <!-- 实际实现分支 -->
+  <rect x="50" y="200" width="500" height="600" rx="15" fill="#ffebee" stroke="#c62828" stroke-width="3"/>
+  
+  <!-- ResNet Backbone -->
+  <rect x="80" y="230" width="200" height="50" rx="5" class="actual-box"/>
+  <text x="180" y="250" class="title-text">ResNet18 Backbone</text>
+  <text x="180" y="265" class="small-text">输出: (B, 512, 8, 8)</text>
+  
+  <!-- Feature Projection -->
+  <rect x="80" y="300" width="200" height="50" rx="5" class="actual-box"/>
+  <text x="180" y="320" class="title-text">特征投影</text>
+  <text x="180" y="335" class="small-text">保持: (B, 512, 8, 8)</text>
+  
+  <!-- Reshape -->
+  <rect x="80" y="370" width="200" height="60" rx="5" class="actual-box"/>
+  <text x="180" y="390" class="title-text">Reshape &amp; Permute</text>
+  <text x="180" y="405" class="small-text">(B,512,8,8) → (B,64,512)</text>
+  <text x="180" y="420" class="small-text">64个空间位置</text>
+  
+  <!-- Community Clustering -->
+  <rect x="80" y="450" width="200" height="60" rx="5" class="actual-box"/>
+  <text x="180" y="470" class="title-text">社区聚类</text>
+  <text x="180" y="485" class="small-text">输入: 64个位置</text>
+  <text x="180" y="500" class="small-text">输出: 3个社区</text>
+  
+  <!-- PCA -->
+  <rect x="80" y="530" width="200" height="50" rx="5" class="actual-box"/>
+  <text x="180" y="550" class="title-text">PCA对齐</text>
+  <text x="180" y="565" class="small-text">512 → 256维</text>
+  
+  <!-- 问题标注 -->
+  <rect x="300" y="230" width="220" height="350" rx="10" class="problem-box"/>
+  <text x="410" y="255" class="title-text" fill="#f57c00">🚨 问题</text>
+  <text x="320" y="280" class="small-text" fill="#333">1. 没有使用ViT</text>
+  <text x="320" y="295" class="small-text" fill="#333">   只有ResNet18</text>
+  
+  <text x="320" y="320" class="small-text" fill="#333">2. 没有10×10 patch</text>
+  <text x="320" y="335" class="small-text" fill="#333">   只有8×8=64个位置</text>
+  
+  <text x="320" y="360" class="small-text" fill="#333">3. patch_size参数</text>
+  <text x="320" y="375" class="small-text" fill="#333">   在代码中未使用</text>
+  
+  <text x="320" y="400" class="small-text" fill="#333">4. 空间分辨率低</text>
+  <text x="320" y="415" class="small-text" fill="#333">   64 vs 期望的100</text>
+  
+  <text x="320" y="440" class="small-text" fill="#333">5. 缺少ViT的</text>
+  <text x="320" y="455" class="small-text" fill="#333">   自注意力机制</text>
+  
+  <text x="320" y="480" class="small-text" fill="#333">6. 特征表达能力</text>
+  <text x="320" y="495" class="small-text" fill="#333">   可能不如ViT+CNN</text>
+  
+  <text x="320" y="520" class="small-text" fill="#333">7. 与论文描述</text>
+  <text x="320" y="535" class="small-text" fill="#333">   不完全一致</text>
+  
+  <text x="320" y="560" class="small-text" fill="#333">8. 创新点体现</text>
+  <text x="320" y="575" class="small-text" fill="#333">   不够充分</text>
+  
+  <!-- 期望实现分支 -->
+  <rect x="1050" y="200" width="500" height="600" rx="15" fill="#e8f5e8" stroke="#2e7d32" stroke-width="3"/>
+  
+  <!-- Patch Division -->
+  <rect x="1080" y="230" width="200" height="60" rx="5" class="expected-box"/>
+  <text x="1180" y="250" class="title-text">10×10 Patch分割</text>
+  <text x="1180" y="265" class="small-text">256×256 → 100个patch</text>
+  <text x="1180" y="280" class="small-text">每个patch: 25.6×25.6</text>
+  
+  <!-- ViT Processing -->
+  <rect x="1080" y="310" width="200" height="60" rx="5" class="expected-box"/>
+  <text x="1180" y="330" class="title-text">ViT Transformer</text>
+  <text x="1180" y="345" class="small-text">自注意力机制</text>
+  <text x="1180" y="360" class="small-text">输出: (B, 100, 768)</text>
+  
+  <!-- CNN Features -->
+  <rect x="1080" y="390" width="200" height="50" rx="5" class="expected-box"/>
+  <text x="1180" y="410" class="title-text">CNN特征融合</text>
+  <text x="1180" y="425" class="small-text">ViT + ResNet特征</text>
+  
+  <!-- Enhanced Clustering -->
+  <rect x="1080" y="460" width="200" height="60" rx="5" class="expected-box"/>
+  <text x="1180" y="480" class="title-text">增强社区聚类</text>
+  <text x="1180" y="495" class="small-text">输入: 100个位置</text>
+  <text x="1180" y="510" class="small-text">更精细的区域发现</text>
+  
+  <!-- Advanced PCA -->
+  <rect x="1080" y="540" width="200" height="50" rx="5" class="expected-box"/>
+  <text x="1180" y="560" class="title-text">高级PCA对齐</text>
+  <text x="1180" y="575" class="small-text">768 → 256维</text>
+  
+  <!-- 优势标注 -->
+  <rect x="1300" y="230" width="220" height="350" rx="10" fill="#f8f9fa" stroke="#4caf50" stroke-width="2"/>
+  <text x="1410" y="255" class="title-text" fill="#2e7d32">✅ 优势</text>
+  <text x="1320" y="280" class="small-text" fill="#333">1. 真正的ViT+CNN</text>
+  <text x="1320" y="295" class="small-text" fill="#333">   混合架构</text>
+  
+  <text x="1320" y="320" class="small-text" fill="#333">2. 10×10=100个patch</text>
+  <text x="1320" y="335" class="small-text" fill="#333">   更高空间分辨率</text>
+  
+  <text x="1320" y="360" class="small-text" fill="#333">3. 自注意力机制</text>
+  <text x="1320" y="375" class="small-text" fill="#333">   全局依赖建模</text>
+  
+  <text x="1320" y="400" class="small-text" fill="#333">4. 更强特征表达</text>
+  <text x="1320" y="415" class="small-text" fill="#333">   ViT的优势</text>
+  
+  <text x="1320" y="440" class="small-text" fill="#333">5. 真正的创新</text>
+  <text x="1320" y="455" class="small-text" fill="#333">   ViT+社区聚类</text>
+  
+  <text x="1320" y="480" class="small-text" fill="#333">6. 更精细聚类</text>
+  <text x="1320" y="495" class="small-text" fill="#333">   100个位置</text>
+  
+  <text x="1320" y="520" class="small-text" fill="#333">7. 符合论文标题</text>
+  <text x="1320" y="535" class="small-text" fill="#333">   ViT-CNN-crossview</text>
+  
+  <text x="1320" y="560" class="small-text" fill="#333">8. 更强的创新性</text>
+  <text x="1320" y="575" class="small-text" fill="#333">   技术贡献更大</text>
+  
+  <!-- 箭头 -->
+  <line x1="650" y1="130" x2="300" y2="200" class="arrow" stroke="#c62828" stroke-width="3"/>
+  <line x1="950" y1="130" x2="1300" y2="200" class="arrow" stroke="#2e7d32" stroke-width="3"/>
+  
+  <!-- 实际实现流程箭头 -->
+  <line x1="180" y1="280" x2="180" y2="300" class="arrow"/>
+  <line x1="180" y1="350" x2="180" y2="370" class="arrow"/>
+  <line x1="180" y1="430" x2="180" y2="450" class="arrow"/>
+  <line x1="180" y1="510" x2="180" y2="530" class="arrow"/>
+  
+  <!-- 期望实现流程箭头 -->
+  <line x1="1180" y1="290" x2="1180" y2="310" class="arrow"/>
+  <line x1="1180" y1="370" x2="1180" y2="390" class="arrow"/>
+  <line x1="1180" y1="440" x2="1180" y2="460" class="arrow"/>
+  <line x1="1180" y1="520" x2="1180" y2="540" class="arrow"/>
+  
+  <!-- 底部建议 -->
+  <rect x="200" y="850" width="1200" height="120" rx="15" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+  <text x="800" y="875" class="title-text" font-size="16" fill="#1976d2">🛠️ 修正建议</text>
+  <text x="220" y="900" class="text" fill="#333">1. <tspan font-weight="bold">添加ViT模块</tspan>: 实现真正的ViT+CNN混合架构</text>
+  <text x="220" y="920" class="text" fill="#333">2. <tspan font-weight="bold">实现10×10 patch分割</tspan>: 将256×256图像分割为100个patch</text>
+  <text x="220" y="940" class="text" fill="#333">3. <tspan font-weight="bold">使用patch_size参数</tspan>: 让配置文件中的参数真正生效</text>
+  <text x="220" y="960" class="text" fill="#333">4. <tspan font-weight="bold">增强社区聚类</tspan>: 在100个位置上进行更精细的聚类</text>
+  
+</svg>

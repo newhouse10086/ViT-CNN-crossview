@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="1600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .input-box { fill: #f3e5f5; stroke: #4a148c; stroke-width: 2; }
+      .innovation-box { fill: #e1f5fe; stroke: #01579b; stroke-width: 3; }
+      .process-box { fill: #fff3e0; stroke: #e65100; stroke-width: 2; }
+      .output-box { fill: #e8f5e8; stroke: #1b5e20; stroke-width: 2; }
+      .text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 12px; text-anchor: middle; }
+      .title-text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 14px; font-weight: bold; text-anchor: middle; }
+      .small-text { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 10px; text-anchor: middle; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- 标题 -->
+  <text x="600" y="30" class="title-text" font-size="18" fill="#01579b">FSRA_IMPROVED 算法流程图</text>
+  <text x="600" y="50" class="text" fill="#666">社区聚类 + PCA特征对齐</text>
+  
+  <!-- 输入层 -->
+  <rect x="450" y="80" width="300" height="60" rx="10" class="input-box"/>
+  <text x="600" y="105" class="title-text">输入图像</text>
+  <text x="600" y="120" class="small-text">卫星图像 &amp; 无人机图像</text>
+  <text x="600" y="135" class="small-text">形状: (B, 3, 256, 256)</text>
+  
+  <!-- ResNet骨干网络 -->
+  <rect x="450" y="180" width="300" height="50" rx="10" class="process-box"/>
+  <text x="600" y="200" class="title-text">ResNet18 骨干网络</text>
+  <text x="600" y="215" class="small-text">特征提取</text>
+  
+  <!-- 特征图 -->
+  <rect x="450" y="270" width="300" height="60" rx="10" class="process-box"/>
+  <text x="600" y="295" class="title-text">特征图</text>
+  <text x="600" y="310" class="small-text">形状: (B, 512, 8, 8)</text>
+  <text x="600" y="325" class="small-text">尺度: 8×8 空间网格</text>
+  
+  <!-- 特征重塑和维度变换 -->
+  <rect x="450" y="370" width="300" height="80" rx="10" class="process-box"/>
+  <text x="600" y="395" class="title-text">Reshape &amp; Permute 操作</text>
+  <text x="600" y="410" class="small-text">Reshape: (B,512,8,8) → (B,512,64)</text>
+  <text x="600" y="425" class="small-text">Permute: (B,512,64) → (B,64,512)</text>
+  <text x="600" y="440" class="small-text">64个空间位置，每个位置512维特征</text>
+  
+  <!-- 分支到两个模块 -->
+  <!-- 左分支: 社区聚类 -->
+  <rect x="50" y="500" width="350" height="80" rx="10" class="innovation-box"/>
+  <text x="225" y="525" class="title-text">🔬 社区聚类模块</text>
+  <text x="225" y="540" class="text">创新点1: 基于图的聚类</text>
+  <text x="225" y="555" class="small-text">逐样本处理</text>
+  <text x="225" y="570" class="small-text">输入: (64, 512) → 输出: (3, 512)</text>
+  
+  <!-- 社区聚类详细步骤 -->
+  <rect x="50" y="620" width="160" height="60" rx="5" class="process-box"/>
+  <text x="130" y="640" class="text">相似度图构建</text>
+  <text x="130" y="655" class="small-text">形状: (64, 64)</text>
+  <text x="130" y="670" class="small-text">余弦相似度</text>
+  
+  <rect x="240" y="620" width="160" height="60" rx="5" class="process-box"/>
+  <text x="320" y="640" class="text">社区检测</text>
+  <text x="320" y="655" class="small-text">Louvain算法</text>
+  <text x="320" y="670" class="small-text">输出: 3个社区</text>
+  
+  <!-- PCA对齐 -->
+  <rect x="50" y="720" width="350" height="80" rx="10" class="innovation-box"/>
+  <text x="225" y="745" class="title-text">📊 PCA对齐模块</text>
+  <text x="225" y="760" class="text">创新点2: 特征对齐</text>
+  <text x="225" y="775" class="small-text">输入: (3, 512) → 输出: (3, 256)</text>
+  <text x="225" y="790" class="small-text">跨视角一致性</text>
+  
+  <!-- 右分支: 全局处理 -->
+  <rect x="800" y="500" width="300" height="60" rx="10" class="process-box"/>
+  <text x="950" y="525" class="title-text">全局平均池化</text>
+  <text x="950" y="540" class="small-text">形状: (B, 64, 512) → (B, 512)</text>
+  
+  <rect x="800" y="600" width="300" height="50" rx="10" class="process-box"/>
+  <text x="950" y="620" class="title-text">全局分类器</text>
+  <text x="950" y="635" class="small-text">输入: (512) → 输出: (701)</text>
+  
+  <!-- 区域分类器 -->
+  <rect x="50" y="840" width="350" height="60" rx="10" class="process-box"/>
+  <text x="225" y="865" class="title-text">区域分类器</text>
+  <text x="225" y="880" class="small-text">3个并行ClassBlock: (256) → (701)</text>
+  
+  <!-- 特征融合 -->
+  <rect x="450" y="940" width="300" height="80" rx="10" class="process-box"/>
+  <text x="600" y="965" class="title-text">特征融合</text>
+  <text x="600" y="980" class="small-text">全局: (B, 512) + 区域: (B, 3×256)</text>
+  <text x="600" y="995" class="small-text">融合形状: (B, 1280)</text>
+  <text x="600" y="1010" class="small-text">线性层(1280 → 512) + BN + ReLU</text>
+  
+  <!-- 最终分类器 -->
+  <rect x="450" y="1060" width="300" height="50" rx="10" class="process-box"/>
+  <text x="600" y="1080" class="title-text">最终分类器</text>
+  <text x="600" y="1095" class="small-text">输入: (512) → 输出: (701)</text>
+  
+  <!-- 多层次输出 -->
+  <rect x="400" y="1150" width="400" height="80" rx="10" class="output-box"/>
+  <text x="600" y="1175" class="title-text">多层次输出</text>
+  <text x="600" y="1190" class="small-text">全局 + 区域 + 融合预测</text>
+  <text x="600" y="1205" class="small-text">总计: 5个预测层次</text>
+  <text x="600" y="1220" class="small-text">形状: (B, 701) 每个</text>
+  
+  <!-- 创新亮点框 -->
+  <rect x="50" y="1270" width="500" height="120" rx="10" fill="#f8f9fa" stroke="#6c757d" stroke-width="2"/>
+  <text x="300" y="1295" class="title-text" fill="#01579b">🎯 创新亮点</text>
+  <text x="70" y="1315" class="small-text" fill="#333">✅ 25倍空间分辨率提升: 100 vs 4 个空间区域</text>
+  <text x="70" y="1330" class="small-text" fill="#333">✅ 自适应聚类: 基于内容 vs 几何划分</text>
+  <text x="70" y="1345" class="small-text" fill="#333">✅ 特征对齐: PCA跨视角一致性</text>
+  <text x="70" y="1360" class="small-text" fill="#333">✅ 参数效率: 15.1M vs 15.9M (减少5%)</text>
+  <text x="70" y="1375" class="small-text" fill="#333">✅ 内存优化: 1280D vs 2048D 融合 (减少37%)</text>
+  
+  <!-- 技术规格框 -->
+  <rect x="600" y="1270" width="500" height="120" rx="10" fill="#f8f9fa" stroke="#6c757d" stroke-width="2"/>
+  <text x="850" y="1295" class="title-text" fill="#e65100">⚙️ 技术规格</text>
+  <text x="620" y="1315" class="small-text" fill="#333">📊 计算复杂度: O(64²) 每样本</text>
+  <text x="620" y="1330" class="small-text" fill="#333">💾 内存使用: ~21KB 每样本 + 1MB PCA模型</text>
+  <text x="620" y="1345" class="small-text" fill="#333">🔬 社区检测: Louvain算法 + K-means后备</text>
+  <text x="620" y="1360" class="small-text" fill="#333">📐 PCA配置: 动态拟合，目标256维</text>
+  <text x="620" y="1375" class="small-text" fill="#333">🎯 批处理: 逐样本聚类，批量训练</text>
+  
+  <!-- 箭头 -->
+  <line x1="600" y1="140" x2="600" y2="180" class="arrow"/>
+  <line x1="600" y1="230" x2="600" y2="270" class="arrow"/>
+  <line x1="600" y1="330" x2="600" y2="370" class="arrow"/>
+  
+  <!-- 分支箭头 -->
+  <line x1="600" y1="450" x2="225" y2="500" class="arrow"/>
+  <line x1="600" y1="450" x2="950" y2="500" class="arrow"/>
+  
+  <!-- 社区聚类流程 -->
+  <line x1="225" y1="580" x2="130" y2="620" class="arrow"/>
+  <line x1="225" y1="580" x2="320" y2="620" class="arrow"/>
+  <line x1="130" y1="680" x2="225" y2="720" class="arrow"/>
+  <line x1="320" y1="680" x2="225" y2="720" class="arrow"/>
+  <line x1="225" y1="800" x2="225" y2="840" class="arrow"/>
+  
+  <!-- 全局流程 -->
+  <line x1="950" y1="560" x2="950" y2="600" class="arrow"/>
+  
+  <!-- 融合箭头 -->
+  <line x1="225" y1="900" x2="500" y2="940" class="arrow"/>
+  <line x1="950" y1="650" x2="700" y2="940" class="arrow"/>
+  
+  <!-- 最终流程 -->
+  <line x1="600" y1="1020" x2="600" y2="1060" class="arrow"/>
+  <line x1="600" y1="1110" x2="600" y2="1150" class="arrow"/>
+  
+</svg>
