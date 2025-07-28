@@ -80,13 +80,17 @@ class CenterLoss(nn.Module):
             labels: (N,) class labels
         """
         batch_size = features.size(0)
-        
+
+        # Ensure centers are on the same device as features
+        if self.centers.device != features.device:
+            self.centers = self.centers.to(features.device)
+
         # Get centers for current batch
         centers_batch = self.centers[labels]  # (N, D)
-        
+
         # Compute center loss
         loss = F.mse_loss(features, centers_batch)
-        
+
         return loss
 
 
