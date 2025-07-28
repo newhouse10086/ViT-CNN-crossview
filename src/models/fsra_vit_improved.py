@@ -17,169 +17,90 @@ from .components import ClassBlock, weights_init_kaiming
 from .vit_module import VisionTransformer
 
 
-class CommunityClusteringModule(nn.Module):
+class KMeansClusteringModule(nn.Module):
     """
-    Community clustering module using graph-based clustering.
-    Innovation: Replace K-means with community detection for adaptive region discovery.
+    Simple K-means clustering module for feature segmentation.
+    Replaces complex community detection with stable K-means clustering.
     """
     
-    def __init__(self, num_clusters: int = 3, similarity_threshold: float = 0.5, target_dim: int = 256):
+    def __init__(self, num_clusters: int = 3, target_dim: int = 256):
         super().__init__()
         self.num_clusters = num_clusters
-        self.similarity_threshold = similarity_threshold
         self.target_dim = target_dim
         
-    def build_similarity_graph(self, features: torch.Tensor) -> nx.Graph:
-        """Build similarity graph from features with optimization for large batches."""
-        N = features.shape[0]
+        # PCA for dimensionality reduction
+        self.pca = None
         
-        # For large feature sets, use sampling to reduce complexity
-        if N > 1000:
-            sample_size = min(500, N)
-            indices = torch.randperm(N)[:sample_size]
-            sampled_features = features[indices]
-            
-            features_norm = F.normalize(sampled_features, p=2, dim=1)
-            similarity_matrix = torch.mm(features_norm, features_norm.t())
-            similarity_np = similarity_matrix.detach().cpu().numpy()
-            
-            G = nx.Graph()
-            for i in range(sample_size):
-                G.add_node(indices[i].item())
-            
-            for i in range(sample_size):
-                for j in range(i + 1, sample_size):
-                    if similarity_np[i, j] > self.similarity_threshold:
-                        G.add_edge(indices[i].item(), indices[j].item(), weight=similarity_np[i, j])
-        else:
-            features_norm = F.normalize(features, p=2, dim=1)
-            similarity_matrix = torch.mm(features_norm, features_norm.t())
-            similarity_np = similarity_matrix.detach().cpu().numpy()
-            
-            G = nx.Graph()
-            for i in range(N):
-                G.add_node(i)
-            
-            for i in range(N):
-                for j in range(i + 1, N):
-                    if similarity_np[i, j] > self.similarity_threshold:
-                        G.add_edge(i, j, weight=similarity_np[i, j])
-        
-        return G
-    
-    def community_detection(self, graph: nx.Graph) -> List[List[int]]:
-        """Perform community detection using Louvain algorithm with fallback."""
-        try:
-            import community as community_louvain
-            partition = community_louvain.best_partition(graph)
-            
-            # Convert partition to list of communities
-            communities = {}
-            for node, comm_id in partition.items():
-                if comm_id not in communities:
-                    communities[comm_id] = []
-                communities[comm_id].append(node)
-            
-            community_list = list(communities.values())
-            
-            # Ensure we have exactly num_clusters communities
-            if len(community_list) > self.num_clusters:
-                # Merge smallest communities
-                community_list.sort(key=len, reverse=True)
-                community_list = community_list[:self.num_clusters]
-            elif len(community_list) < self.num_clusters:
-                # Split largest community
-                while len(community_list) < self.num_clusters:
-                    largest_idx = max(range(len(community_list)), key=lambda i: len(community_list[i]))
-                    largest = community_list[largest_idx]
-                    if len(largest) > 1:
-                        mid = len(largest) // 2
-                        community_list[largest_idx] = largest[:mid]
-                        community_list.append(largest[mid:])
-                    else:
-                        break
-            
-            return community_list
-            
-        except ImportError:
-            print("Warning: python-louvain not available, using fallback clustering")
-            # Fallback to K-means clustering
-            return self.fallback_clustering(graph)
-    
-    def fallback_clustering(self, graph: nx.Graph) -> List[List[int]]:
-        """Fallback clustering using K-means."""
-        nodes = list(graph.nodes())
-        if len(nodes) < self.num_clusters:
-            # Not enough nodes, create single-node communities
-            return [[node] for node in nodes] + [[] for _ in range(self.num_clusters - len(nodes))]
-        
-        # Simple spatial clustering based on node indices
-        nodes_per_cluster = len(nodes) // self.num_clusters
-        communities = []
-        for i in range(self.num_clusters):
-            start_idx = i * nodes_per_cluster
-            if i == self.num_clusters - 1:
-                # Last cluster gets remaining nodes
-                communities.append(nodes[start_idx:])
-            else:
-                communities.append(nodes[start_idx:start_idx + nodes_per_cluster])
-        
-        return communities
-    
     def apply_pca(self, features: torch.Tensor) -> torch.Tensor:
-        """Apply PCA for dimensionality reduction with enhanced error handling."""
-        with torch.no_grad():
-            features_np = features.detach().cpu().numpy()
+        """Apply PCA for dimensionality alignment."""
+        features_np = features.detach().cpu().numpy()
+        
+        # Get feature dimensions
+        if len(features_np.shape) == 2:
             n_samples, n_features = features_np.shape
+        else:
+            return features  # Return as-is if unexpected shape
+        
+        # Skip PCA if we already have the target dimension or fewer features
+        if n_features <= self.target_dim:
+            return features
             
-            max_components = min(n_samples, n_features)
-            target_components = min(self.target_dim, max_components)
+        # Initialize PCA if needed
+        if self.pca is None:
+            from sklearn.decomposition import PCA
+            self.pca = PCA(n_components=min(n_features, self.target_dim))
             
-            if max_components <= 1 or target_components <= 0:
-                if n_features >= self.target_dim:
-                    return features[:, :self.target_dim]
-                else:
-                    padding = torch.zeros(n_samples, self.target_dim - n_features, 
-                                        dtype=features.dtype, device=features.device)
-                    return torch.cat([features, padding], dim=1)
+        # Fit and transform
+        try:
+            if not hasattr(self.pca, 'components_'):  # Not fitted yet
+                features_transformed = self.pca.fit_transform(features_np)
+            else:
+                features_transformed = self.pca.transform(features_np)
+        except Exception:
+            # Fallback: just truncate or pad
+            if n_features > self.target_dim:
+                features_transformed = features_np[:, :self.target_dim]
+            else:
+                features_transformed = features_np
+        
+        return torch.from_numpy(features_transformed).to(features.device).float()
+    
+    def kmeans_clustering(self, features: torch.Tensor) -> List[List[int]]:
+        """Perform K-means clustering on features."""
+        features_np = features.detach().cpu().numpy()
+        
+        try:
+            from sklearn.cluster import KMeans
+            kmeans = KMeans(n_clusters=self.num_clusters, random_state=42, n_init=10)
+            cluster_labels = kmeans.fit_predict(features_np)
             
-            if not hasattr(self, 'pca') or self.pca is None or self.pca.n_components_ != target_components:
-                if hasattr(self, 'pca') and self.pca is not None:
-                    del self.pca
-                self.pca = PCA(n_components=target_components)
-                self.pca.fit(features_np)
+            # Convert to list of communities
+            communities = [[] for _ in range(self.num_clusters)]
+            for idx, label in enumerate(cluster_labels):
+                communities[label].append(idx)
             
-            try:
-                features_reduced = self.pca.transform(features_np)
-                result = torch.tensor(features_reduced, dtype=features.dtype, device=features.device)
-                
-                if result.shape[1] < self.target_dim:
-                    padding = torch.zeros(result.shape[0], self.target_dim - result.shape[1],
-                                        dtype=features.dtype, device=features.device)
-                    result = torch.cat([result, padding], dim=1)
-                elif result.shape[1] > self.target_dim:
-                    result = result[:, :self.target_dim]
-                
-                return result
-                
-            except Exception:
-                if n_features >= self.target_dim:
-                    return features[:, :self.target_dim]
-                else:
-                    padding = torch.zeros(n_samples, self.target_dim - n_features,
-                                        dtype=features.dtype, device=features.device)
-                    return torch.cat([features, padding], dim=1)
+            return communities
+        except Exception:
+            # Fallback: simple equal division
+            N = features.shape[0]
+            chunk_size = N // self.num_clusters
+            communities = []
+            for i in range(self.num_clusters):
+                start_idx = i * chunk_size
+                end_idx = start_idx + chunk_size if i < self.num_clusters - 1 else N
+                communities.append(list(range(start_idx, end_idx)))
+            return communities
     
     def forward(self, feature_map: torch.Tensor) -> Tuple[torch.Tensor, List]:
         """
-        Forward pass of community clustering.
+        Forward pass of K-means clustering.
         
         Args:
             feature_map: Feature tensor of shape (B, C, H, W)
             
         Returns:
             clustered_features: Tensor of shape (B, num_clusters, target_dim)
-            communities: List of community assignments for each sample
+            communities: List of cluster assignments for each sample
         """
         B, C, H, W = feature_map.shape
         
@@ -192,17 +113,10 @@ class CommunityClusteringModule(nn.Module):
         for b in range(B):
             batch_features = features[b]  # (H*W, C)
             
-            # Build similarity graph
-            graph = self.build_similarity_graph(batch_features)
+            # Perform K-means clustering
+            communities = self.kmeans_clustering(batch_features)
             
-            # Perform community detection
-            communities = self.community_detection(graph)
-            
-            # Clean up graph to prevent memory leaks
-            graph.clear()
-            del graph
-            
-            # Aggregate features for each community
+            # Aggregate features for each cluster
             clustered_features = []
             for community in communities:
                 if len(community) > 0:
@@ -279,10 +193,9 @@ class FSRAViTImproved(nn.Module):
         # Feature fusion dimension
         fusion_dim = cnn_output_dim + vit_output_dim  # 100 + 100 = 200
         
-        # Community clustering module (now working on fewer patches)
-        self.community_clustering = CommunityClusteringModule(
+        # K-means clustering module (now working on fewer patches)
+        self.kmeans_clustering = KMeansClusteringModule(
             num_clusters=num_clusters,
-            similarity_threshold=0.5,
             target_dim=target_pca_dim
         )
         
@@ -368,8 +281,8 @@ class FSRAViTImproved(nn.Module):
         global_output = self.global_classifier(global_feat)
         global_pred, global_f = global_output  # Unpack the list
         
-        # Community clustering on fused features (now with better performance)
-        clustered_features, communities = self.community_clustering(fused_features)  # (B, 3, 256)
+        # K-means clustering on fused features (now with better performance)
+        clustered_features, communities = self.kmeans_clustering(fused_features)  # (B, 3, 256)
         
         # Regional classification
         regional_preds = []

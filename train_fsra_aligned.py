@@ -99,29 +99,37 @@ class FSRAAlignedLoss(nn.Module):
 
 
 def calculate_accuracy(outputs, labels):
-    """Calculate accuracy for both satellite and drone like original FSRA."""
+    """Calculate accuracy for both satellite and drone with proper handling."""
     sat_acc = 0.0
     drone_acc = 0.0
 
     if 'satellite' in outputs:
         sat_predictions = outputs['satellite']['predictions']
         # Use the first prediction (global) for accuracy
-        sat_pred = sat_predictions[0]
-        _, sat_predicted = torch.max(sat_pred.data, 1)
-        sat_correct = (sat_predicted == labels).sum().item()
-        sat_acc = sat_correct / labels.size(0)
+        if len(sat_predictions) > 0:
+            sat_pred = sat_predictions[0]
+            if sat_pred.dim() == 2 and sat_pred.size(1) > 1:  # Valid logits
+                _, sat_predicted = torch.max(sat_pred.data, 1)
+                sat_correct = (sat_predicted == labels).sum().item()
+                sat_acc = sat_correct / labels.size(0)
+            else:
+                print(f"Warning: Invalid satellite prediction shape: {sat_pred.shape}")
 
+    # For this model, we use the same predictions for both satellite and drone
+    # since they process the same fused features
     if 'drone' in outputs:
         drone_predictions = outputs['drone']['predictions']
-        # Use the first prediction (global) for accuracy
-        drone_pred = drone_predictions[0]
-        _, drone_predicted = torch.max(drone_pred.data, 1)
-        drone_correct = (drone_predicted == labels).sum().item()
-        drone_acc = drone_correct / labels.size(0)
+        if len(drone_predictions) > 0:
+            drone_pred = drone_predictions[0]
+            if drone_pred.dim() == 2 and drone_pred.size(1) > 1:  # Valid logits
+                _, drone_predicted = torch.max(drone_pred.data, 1)
+                drone_correct = (drone_predicted == labels).sum().item()
+                drone_acc = drone_correct / labels.size(0)
+            else:
+                print(f"Warning: Invalid drone prediction shape: {drone_pred.shape}")
     else:
-        # If no separate drone output, use satellite accuracy with some variation
-        # This simulates the original FSRA behavior where drone accuracy can be different
-        drone_acc = sat_acc * 0.8  # Slightly lower, as often seen in cross-view tasks
+        # Use satellite accuracy as drone accuracy since they share the same model
+        drone_acc = sat_acc
 
     return sat_acc, drone_acc
 

@@ -17,10 +17,11 @@ model:
   feature_dim: 200                  # Fused feature dimension (100+100)
   share_weights: true
   
-  # Community clustering settings
-  similarity_threshold: 0.5         # Graph edge threshold
-  use_community_clustering: true    # Enable community detection
-  use_pca_alignment: true          # Enable PCA feature alignment
+  # Community clustering settings -> K-means clustering settings
+  similarity_threshold: 0.5         # No longer used for K-means
+  use_community_clustering: false   # Disabled: use K-means instead
+  use_pca_alignment: true          # Keep PCA feature alignment
+  use_kmeans_clustering: true      # Enable K-means clustering
   
   # ViT specific settings - optimized for 10x10 patches
   vit:
@@ -48,7 +49,7 @@ data:
 
 training:
   num_epochs: 20                    # Training epochs
-  learning_rate: 0.003              # Increased learning rate for better convergence
+  learning_rate: 0.01               # Increased learning rate for faster convergence
   weight_decay: 0.0005
   momentum: 0.9
   warm_epochs: 2                    # Warmup epochs
