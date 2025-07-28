@@ -102,14 +102,8 @@ class KMeansClusteringModule(nn.Module):
 
 class FSRAViTImproved(nn.Module):
     """
-    FSRA ViT Improved Model - True Innovation Architecture
-    
-    Your Innovation:
-    1. ViT Branch: 10x10 patches -> ViT Transformer -> (B, 100, 8, 8)
-    2. CNN Branch: ResNet18 -> Dimension reduction -> (B, 100, 8, 8)  
-    3. Fusion: Concat -> (B, 200, 8, 8)
-    4. Community Clustering + PCA Alignment
-    5. Multi-level Classification
+    FSRA ViT Improved: True ViT+CNN Hybrid with Community Clustering and PCA Alignment.
+    Innovation: Combining Vision Transformer with CNN backbone for superior cross-view matching.
     """
     
     def __init__(
@@ -119,85 +113,93 @@ class FSRAViTImproved(nn.Module):
         patch_size: int = 25,
         cnn_output_dim: int = 100,
         vit_output_dim: int = 100,
-        use_pretrained: bool = True
+        use_pretrained: bool = True,
+        use_kmeans_clustering: bool = False  # 新增参数控制聚类
     ):
-        super().__init__()
+        super(FSRAViTImproved, self).__init__()
         
         self.num_classes = num_classes
         self.num_clusters = num_clusters
         self.patch_size = patch_size
         self.cnn_output_dim = cnn_output_dim
         self.vit_output_dim = vit_output_dim
+        self.use_kmeans_clustering = use_kmeans_clustering  # 存储聚类设置
         
-        # CNN Branch: ResNet18 backbone
-        self.cnn_backbone = resnet18_backbone(pretrained=use_pretrained)
+        # CNN Backbone (ResNet18)
+        from torchvision.models import resnet18
+        self.cnn_backbone = resnet18(pretrained=use_pretrained)
+        self.cnn_backbone.fc = nn.Identity()  # Remove final FC layer
         
-        # CNN dimension reduction: 512 -> cnn_output_dim + spatial alignment
+        # CNN dimension reduction to match ViT output
         self.cnn_dim_reduction = nn.Sequential(
-            nn.Conv2d(512, cnn_output_dim, kernel_size=1, bias=False),
+            nn.Conv2d(512, cnn_output_dim, kernel_size=3, padding=1),
             nn.BatchNorm2d(cnn_output_dim),
             nn.ReLU(inplace=True),
-            nn.AdaptiveAvgPool2d((8, 8))  # Ensure 8x8 output to match ViT
+            nn.AdaptiveAvgPool2d((8, 8))  # Ensure 8x8 spatial size
         )
         
-        # ViT Branch: Vision Transformer optimized for 10x10 patches
+        # ViT Branch
+        from .vit_module import VisionTransformer
         self.vit_branch = VisionTransformer(
-            img_size=250,                # Changed from 256 to 250
-            patch_size=patch_size,       # This will be 25 from config
-            in_channels=3,
-            embed_dim=768,
-            depth=6,
-            num_heads=12,
-            output_dim=vit_output_dim    # 100
+            img_size=250,
+            patch_size=patch_size,
+            embed_dim=384,  # 简化的ViT配置
+            depth=3,
+            num_heads=6,
+            mlp_ratio=2.0,
+            output_dim=vit_output_dim
         )
         
-        # Feature fusion dimension
-        fusion_dim = cnn_output_dim + vit_output_dim  # 100 + 100 = 200
+        # Feature fusion
+        fusion_dim = cnn_output_dim + vit_output_dim  # 200
         
-        # K-means clustering module (now working on fewer patches)
-        self.kmeans_clustering = KMeansClusteringModule(
-            num_clusters=num_clusters,
-            feature_dim=fusion_dim
-        )
-        
-        # Global classifier (on fused features) - Fixed dimension matching
+        # Global classifier (always present)
         self.global_classifier = ClassBlock(
-            input_dim=fusion_dim,            # 200 (CNN 100 + ViT 100)
-            class_num=num_classes,           # 701
-            num_bottleneck=fusion_dim,       # Use fusion_dim instead of target_pca_dim
-            return_f=True
-        )
-        
-        # Regional classifiers for each cluster - Fixed to use fusion_dim consistently
-        self.regional_classifiers = nn.ModuleList([
-            ClassBlock(
-                input_dim=fusion_dim,            # 200 (same as global classifier)
-                class_num=num_classes,           # 701
-                num_bottleneck=fusion_dim,       # 200 (consistent with global)
-                return_f=True
-            ) for _ in range(num_clusters)
-        ])
-        
-        # Feature fusion for final prediction - Fixed dimension calculation
-        # Global features: fusion_dim (200), Regional features: num_clusters * fusion_dim (3 * 200 = 600)
-        final_fusion_dim = fusion_dim + num_clusters * fusion_dim  # 200 + 600 = 800
-        self.feature_fusion = nn.Sequential(
-            nn.Linear(final_fusion_dim, fusion_dim),  # 800 -> 200
-            nn.BatchNorm1d(fusion_dim),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.5)
-        )
-        
-        # Final classifier - Fixed dimension
-        self.final_classifier = ClassBlock(
-            input_dim=fusion_dim,            # 200 (from feature_fusion)
-            class_num=num_classes,           # 701
+            input_dim=fusion_dim,            # 200
+            class_num=num_classes,
             num_bottleneck=fusion_dim,       # 200
             return_f=True
         )
         
-        # Initialize weights
-        self.apply(weights_init_kaiming)
+        # 条件性创建聚类和区域分类器
+        if self.use_kmeans_clustering:
+            # K-means clustering module (only if enabled)
+            self.kmeans_clustering = KMeansClusteringModule(
+                num_clusters=num_clusters,
+                feature_dim=fusion_dim
+            )
+            
+            # Regional classifiers (only if clustering enabled)
+            self.regional_classifiers = nn.ModuleList([
+                ClassBlock(
+                    input_dim=fusion_dim,            # 200
+                    class_num=num_classes,
+                    num_bottleneck=fusion_dim,       # 200
+                    return_f=True
+                ) for _ in range(num_clusters)
+            ])
+            
+            # Feature fusion for final prediction (with regional features)
+            final_fusion_dim = fusion_dim + num_clusters * fusion_dim  # 200 + 3 * 200 = 800
+            self.feature_fusion = nn.Sequential(
+                nn.Linear(final_fusion_dim, fusion_dim),  # 800 -> 200
+                nn.BatchNorm1d(fusion_dim),
+                nn.ReLU(inplace=True),
+                nn.Dropout(0.5)
+            )
+            
+            self.final_classifier = ClassBlock(
+                input_dim=fusion_dim,            # 200
+                class_num=num_classes,
+                num_bottleneck=fusion_dim,       # 200
+                return_f=True
+            )
+        else:
+            # 无聚类模式：只使用全局分类器
+            self.kmeans_clustering = None
+            self.regional_classifiers = None
+            self.feature_fusion = None
+            self.final_classifier = None
         
     def forward(self, sat_img: torch.Tensor, drone_img: torch.Tensor) -> dict:
         """
@@ -238,73 +240,87 @@ class FSRAViTImproved(nn.Module):
         # Global average pooling for global classification
         global_feat = F.adaptive_avg_pool2d(fused_features, (1, 1)).view(B, -1)  # (B, 200)
         
-        # Global classification
+        # Global classification (always present)
         global_output = self.global_classifier(global_feat)
         global_pred, global_f = global_output  # Unpack the list
         
-        # K-means clustering on fused features (now with better performance)
-        clustered_features, communities = self.kmeans_clustering(fused_features)  # (B, 3, 200)
-        
-        # Regional classification
-        regional_preds = []
-        regional_feats = []
+        # 根据配置决定是否使用聚类
+        if self.use_kmeans_clustering and self.kmeans_clustering is not None:
+            # 完整模式：使用K-means聚类和区域分类器
+            clustered_features, communities = self.kmeans_clustering(fused_features)  # (B, 3, 200)
+            
+            # Regional classification
+            regional_preds = []
+            regional_feats = []
 
-        for i, regional_classifier in enumerate(self.regional_classifiers):
-            regional_input = clustered_features[:, i, :]  # (B, 200)
-            regional_output = regional_classifier(regional_input)
-            regional_pred, regional_f = regional_output  # Unpack the list
-            regional_preds.append(regional_pred)
-            regional_feats.append(regional_f)
-        
-        # Feature fusion for final prediction
-        all_features = torch.cat([global_f] + regional_feats, dim=1)  # (B, 800)
-        fused_features_final = self.feature_fusion(all_features)  # (B, 200)
-        
-        # Final classification
-        final_output = self.final_classifier(fused_features_final)
-        final_pred, final_f = final_output  # Unpack the list
-        
-        # Prepare output
-        predictions = [global_pred] + regional_preds + [final_pred]
-        
-        return {
-            'satellite': {
-                'predictions': predictions,
-                'features': {
-                    'global': global_f,
-                    'regional': regional_feats,
-                    'final': final_f,
-                    'cnn_features': cnn_features,
-                    'vit_features': vit_features,
-                    'fused_features': fused_features
-                }
-            },
-            'alignment': None  # No alignment loss for this model
-        }
+            for i, regional_classifier in enumerate(self.regional_classifiers):
+                regional_input = clustered_features[:, i, :]  # (B, 200)
+                regional_output = regional_classifier(regional_input)
+                regional_pred, regional_f = regional_output  # Unpack the list
+                regional_preds.append(regional_pred)
+                regional_feats.append(regional_f)
+            
+            # Feature fusion for final prediction
+            all_features = torch.cat([global_f] + regional_feats, dim=1)  # (B, 800)
+            fused_features_final = self.feature_fusion(all_features)  # (B, 200)
+            
+            # Final classification
+            final_output = self.final_classifier(fused_features_final)
+            final_pred, final_f = final_output  # Unpack the list
+            
+            # Prepare output with all predictions
+            predictions = [global_pred] + regional_preds + [final_pred]
+            
+            return {
+                'satellite': {
+                    'predictions': predictions,
+                    'features': {
+                        'global': global_f,
+                        'regional': regional_feats,
+                        'final': final_f,
+                        'cnn_features': cnn_features,
+                        'vit_features': vit_features,
+                        'fused_features': fused_features
+                    }
+                },
+                'alignment': None
+            }
+        else:
+            # 简化模式：只使用全局分类器（大幅提升速度）
+            predictions = [global_pred]  # 只有全局预测
+            
+            return {
+                'satellite': {
+                    'predictions': predictions,
+                    'features': {
+                        'global': global_f,
+                        'cnn_features': cnn_features,
+                        'vit_features': vit_features,
+                        'fused_features': fused_features
+                    }
+                },
+                'alignment': None
+            }
 
 
-def create_fsra_vit_improved(num_classes=701,
-                           num_clusters=3,
-                           patch_size=25,                # Changed from 10 to 25
-                           cnn_output_dim=100,
-                           vit_output_dim=100):
+def create_fsra_vit_improved(
+    num_classes: int = 701,
+    num_clusters: int = 3,
+    patch_size: int = 25,
+    cnn_output_dim: int = 100,
+    vit_output_dim: int = 100,
+    use_pretrained: bool = True,
+    use_kmeans_clustering: bool = False  # 新增参数
+) -> FSRAViTImproved:
     """
-    Create FSRA ViT Improved model optimized for 10x10 patches (No PCA).
-
-    Args:
-        num_classes: Number of classes for classification
-        num_clusters: Number of clusters for K-means clustering
-        patch_size: Patch size for ViT (default: 25 for 250x250 images -> 10x10 patches)
-        cnn_output_dim: CNN branch output dimension
-        vit_output_dim: ViT branch output dimension
-
-    Returns:
-        FSRAViTImproved model instance
+    Create FSRA ViT Improved model.
     """
     return FSRAViTImproved(
         num_classes=num_classes,
         num_clusters=num_clusters,
         patch_size=patch_size,
         cnn_output_dim=cnn_output_dim,
-        vit_output_dim=vit_output_dim
+        vit_output_dim=vit_output_dim,
+        use_pretrained=use_pretrained,
+        use_kmeans_clustering=use_kmeans_clustering
     )

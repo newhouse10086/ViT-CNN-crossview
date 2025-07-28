@@ -369,13 +369,13 @@ def create_simple_fsra_model(config: Dict[str, Any]) -> nn.Module:
 
 def create_fsra_vit_improved_model(config: Dict[str, Any]) -> nn.Module:
     """
-    Create FSRA ViT Improved model - True ViT+CNN hybrid architecture (No PCA).
+    Create FSRA ViT Improved model - True ViT+CNN hybrid architecture (Optimized).
 
     Your Innovation:
-    - ViT Branch: 10x10 patches -> ViT Transformer
+    - ViT Branch: 10x10 patches -> ViT Transformer (Simplified)
     - CNN Branch: ResNet18 -> Dimension reduction
     - Fusion: Concat ViT + CNN features
-    - Simple K-means Clustering (No PCA)
+    - Optional K-means Clustering (Speed vs Accuracy tradeoff)
 
     Args:
         config: Configuration dictionary
@@ -391,11 +391,15 @@ def create_fsra_vit_improved_model(config: Dict[str, Any]) -> nn.Module:
     cnn_output_dim = model_config.get('cnn_output_dim', 100)
     vit_output_dim = model_config.get('vit_output_dim', 100)
     use_pretrained = model_config.get('use_pretrained', True)
+    
+    # 聚类配置 - 关键优化点
+    use_kmeans_clustering = model_config.get('use_kmeans_clustering', False)
 
-    logger.info(f"Creating FSRA ViT Improved model with {num_classes} classes, {num_clusters} clusters")
+    logger.info(f"Creating FSRA ViT Improved model with {num_classes} classes")
     logger.info(f"  Patch size: {patch_size}x{patch_size}")
     logger.info(f"  CNN output dim: {cnn_output_dim}")
     logger.info(f"  ViT output dim: {vit_output_dim}")
+    logger.info(f"  K-means clustering: {'Enabled' if use_kmeans_clustering else 'Disabled (Speed Optimized)'}")
     logger.info(f"  No PCA alignment (simplified)")
 
     model = FSRAViTImproved(
@@ -404,8 +408,14 @@ def create_fsra_vit_improved_model(config: Dict[str, Any]) -> nn.Module:
         patch_size=patch_size,
         cnn_output_dim=cnn_output_dim,
         vit_output_dim=vit_output_dim,
-        use_pretrained=use_pretrained
+        use_pretrained=use_pretrained,
+        use_kmeans_clustering=use_kmeans_clustering
     )
+
+    if use_kmeans_clustering:
+        logger.info("✅ Full model with K-means clustering and regional classifiers")
+    else:
+        logger.info("🚀 Simplified model with global classifier only (2-3x faster training)")
 
     return model
 

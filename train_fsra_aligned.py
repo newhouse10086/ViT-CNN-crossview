@@ -13,6 +13,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 import numpy as np
 
 # Add src to path
@@ -61,7 +62,7 @@ class FSRAAlignedLoss(nn.Module):
         total_loss += cls_loss
         losses['cls_loss'] = cls_loss.item()
         
-        # 2. Triplet Loss (on global features)
+        # 2. Triplet Loss (on global features with hard mining)
         triplet_loss = 0.0
         if 'global' in features_dict:
             global_features = features_dict['global']
@@ -71,65 +72,100 @@ class FSRAAlignedLoss(nn.Module):
             global_features = list(features_dict.values())[0]
         
         if isinstance(global_features, torch.Tensor) and global_features.dim() == 2:
-            # Create triplets from batch
+            # Normalize features for better triplet loss
+            normalized_features = F.normalize(global_features, p=2, dim=1)
+            
+            # Create triplets from batch with hard mining
             batch_size = global_features.shape[0]
             if batch_size >= 3:  # Need at least 3 samples for triplet
-                # Simple triplet creation (can be improved with hard mining)
-                anchor_idx = torch.arange(0, batch_size-2)
-                positive_idx = torch.arange(1, batch_size-1)
-                negative_idx = torch.arange(2, batch_size)
+                # Compute pairwise distances
+                dist_mat = torch.cdist(normalized_features, normalized_features, p=2)
                 
-                # Filter to ensure positive pairs have same label
-                valid_triplets = labels[anchor_idx] == labels[positive_idx]
+                # Create positive and negative masks
+                labels_expanded = labels.view(-1, 1)
+                pos_mask = (labels_expanded == labels_expanded.T).float()
+                neg_mask = (labels_expanded != labels_expanded.T).float()
+                
+                # Remove self-comparison
+                pos_mask = pos_mask - torch.eye(batch_size, device=labels.device)
+                
+                # Hard positive mining (furthest positive)
+                pos_distances = dist_mat * pos_mask
+                pos_distances[pos_mask == 0] = -1  # Set non-positives to -1
+                hardest_pos_dist, _ = torch.max(pos_distances, dim=1)
+                
+                # Hard negative mining (closest negative) 
+                neg_distances = dist_mat * neg_mask
+                neg_distances[neg_mask == 0] = float('inf')  # Set non-negatives to inf
+                hardest_neg_dist, _ = torch.min(neg_distances, dim=1)
+                
+                # Only use valid triplets (where we found both pos and neg)
+                valid_triplets = (hardest_pos_dist > -1) & (hardest_neg_dist < float('inf'))
+                
                 if valid_triplets.sum() > 0:
-                    anchor_features = global_features[anchor_idx[valid_triplets]]
-                    positive_features = global_features[positive_idx[valid_triplets]]
-                    negative_features = global_features[negative_idx[valid_triplets]]
-                    
-                    triplet_loss = self.triplet_loss(anchor_features, positive_features, negative_features)
+                    triplet_loss = F.relu(hardest_pos_dist[valid_triplets] - 
+                                        hardest_neg_dist[valid_triplets] + 
+                                        self.triplet_margin).mean()
         
         total_loss += triplet_loss
         losses['triplet_loss'] = triplet_loss.item() if isinstance(triplet_loss, torch.Tensor) else 0.0
         
-        # 3. KL Loss (set to 0 for now, like original FSRA early training)
-        losses['kl_loss'] = 0.0
+        # 3. KL Loss (实现真正的KL散度)
+        kl_loss = 0.0
+        if len(predictions) > 1:
+            # 计算不同预测器输出之间的KL散度，促进一致性
+            prob_distributions = [F.softmax(pred, dim=1) for pred in predictions]
+            
+            # 计算主要预测（第一个）与其他预测之间的KL散度
+            main_pred = prob_distributions[0]
+            for i, other_pred in enumerate(prob_distributions[1:], 1):
+                kl_div = F.kl_div(other_pred.log(), main_pred, reduction='batchmean')
+                kl_loss += kl_div
+            
+            # 平均KL散度
+            kl_loss = kl_loss / (len(prob_distributions) - 1)
+        
+        total_loss += 0.1 * kl_loss  # 降低KL损失权重
+        losses['kl_loss'] = kl_loss.item() if isinstance(kl_loss, torch.Tensor) else 0.0
         
         losses['total'] = total_loss
         return losses
 
 
 def calculate_accuracy(outputs, labels):
-    """Calculate accuracy for both satellite and drone with proper handling."""
+    """Calculate accuracy for both satellite and drone independently."""
     sat_acc = 0.0
     drone_acc = 0.0
 
+    # 卫星精度计算
     if 'satellite' in outputs:
         sat_predictions = outputs['satellite']['predictions']
-        # Use the first prediction (global) for accuracy
         if len(sat_predictions) > 0:
-            sat_pred = sat_predictions[0]
-            if sat_pred.dim() == 2 and sat_pred.size(1) > 1:  # Valid logits
+            sat_pred = sat_predictions[0]  # 使用第一个预测器（global）
+            if sat_pred.dim() == 2 and sat_pred.size(1) > 1:
                 _, sat_predicted = torch.max(sat_pred.data, 1)
                 sat_correct = (sat_predicted == labels).sum().item()
                 sat_acc = sat_correct / labels.size(0)
-            else:
-                print(f"Warning: Invalid satellite prediction shape: {sat_pred.shape}")
 
-    # For this model, we use the same predictions for both satellite and drone
-    # since they process the same fused features
-    if 'drone' in outputs:
+    # 无人机精度计算（如果有独立输出）
+    if 'drone' in outputs and outputs['drone'] is not None:
         drone_predictions = outputs['drone']['predictions']
         if len(drone_predictions) > 0:
-            drone_pred = drone_predictions[0]
-            if drone_pred.dim() == 2 and drone_pred.size(1) > 1:  # Valid logits
+            drone_pred = drone_predictions[0]  # 使用第一个预测器（global）
+            if drone_pred.dim() == 2 and drone_pred.size(1) > 1:
                 _, drone_predicted = torch.max(drone_pred.data, 1)
                 drone_correct = (drone_predicted == labels).sum().item()
                 drone_acc = drone_correct / labels.size(0)
-            else:
-                print(f"Warning: Invalid drone prediction shape: {drone_pred.shape}")
     else:
-        # Use satellite accuracy as drone accuracy since they share the same model
-        drone_acc = sat_acc
+        # 如果没有独立的无人机输出，使用最后一个预测器作为融合预测
+        if 'satellite' in outputs and len(outputs['satellite']['predictions']) > 1:
+            final_pred = outputs['satellite']['predictions'][-1]  # 最后一个预测器（融合后）
+            if final_pred.dim() == 2 and final_pred.size(1) > 1:
+                _, final_predicted = torch.max(final_pred.data, 1)
+                final_correct = (final_predicted == labels).sum().item()
+                drone_acc = final_correct / labels.size(0)
+        else:
+            drone_acc = sat_acc  # 作为备选方案
 
     return sat_acc, drone_acc
 
@@ -257,26 +293,21 @@ def main():
     criterion = FSRAAlignedLoss(num_classes=len(class_names))
     print("FSRA-aligned loss function created")
     
-    # Create optimizer exactly like FSRA
-    backbone_params = []
-    other_params = []
+    # Create optimizer with unified learning rate
+    learning_rate = config['training']['learning_rate']
     
-    for name, param in model.named_parameters():
-        if any(x in name.lower() for x in ['backbone', 'resnet', 'cnn_backbone']):
-            backbone_params.append(param)
-        else:
-            other_params.append(param)
+    # 统一学习率，避免backbone/other分离的复杂性
+    optimizer = optim.SGD(
+        model.parameters(), 
+        lr=learning_rate,
+        momentum=0.9, 
+        weight_decay=5e-4
+    )
     
-    # FSRA learning rates: backbone=0.003, others=0.01
-    optimizer = optim.SGD([
-        {'params': backbone_params, 'lr': 0.003},
-        {'params': other_params, 'lr': 0.01}
-    ], momentum=0.9, weight_decay=5e-4)
+    print(f"Optimizer created with unified lr={learning_rate}")
     
-    # FSRA scheduler: step decay at 40, 70 epochs
+    # Create scheduler
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[40, 70], gamma=0.1)
-    
-    print(f"Optimizer created with backbone_lr=0.003, other_lr=0.01")
     
     # Training loop
     num_epochs = config['training']['num_epochs']
@@ -297,14 +328,15 @@ def main():
         
         # Print results in FSRA format
         epoch_time = time.time() - start_time
+        current_lr = optimizer.param_groups[0]['lr']
         print(f"train Loss: {metrics['loss']:.4f} "
               f"Cls_Loss:{metrics['cls_loss']:.4f} "
               f"KL_Loss:{metrics['kl_loss']:.4f} "
               f"Triplet_Loss {metrics['triplet_loss']:.4f} "
               f"Satellite_Acc: {metrics['sat_accuracy']:.4f} "
               f"Drone_Acc: {metrics['drone_accuracy']:.4f} "
-              f"lr_backbone:{optimizer.param_groups[0]['lr']:.6f} "
-              f"lr_other {optimizer.param_groups[1]['lr']:.6f}")
+              f"lr_backbone:{current_lr:.6f} "
+              f"lr_other {current_lr:.6f}")
         print(f"Training complete in {epoch_time//60:.0f}m {epoch_time%60:.0f}s")
         
         # Log metrics

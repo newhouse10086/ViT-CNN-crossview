@@ -19,14 +19,14 @@ model:
   # K-means clustering settings (simplified - no PCA)
   use_community_clustering: false   # Disabled: use simple K-means instead
   use_pca_alignment: false         # Disabled: no PCA feature alignment
-  use_kmeans_clustering: true      # Enable simple K-means clustering
+  use_kmeans_clustering: false     # Temporarily disabled for maximum speed
   
-  # ViT specific settings - optimized for 10x10 patches
+  # ViT specific settings - simplified for speed
   vit:
-    embed_dim: 768                  # ViT embedding dimension
-    depth: 6                        # Number of transformer blocks
-    num_heads: 12                   # Multi-head attention heads
-    mlp_ratio: 4.0                  # MLP expansion ratio
+    embed_dim: 384                  # Reduced from 768 for speed
+    depth: 3                        # Reduced from 6 for speed
+    num_heads: 6                    # Reduced from 12 for speed
+    mlp_ratio: 2.0                  # Reduced from 4.0 for speed
     dropout: 0.1                    # Dropout rate
   
   # Pretrained model settings
@@ -35,7 +35,7 @@ model:
 data:
   data_dir: "data"
   test_dir: "data/test"
-  batch_size: 8                     # Optimized batch size for ViT+CNN
+  batch_size: 16                    # Increased batch size for better GPU utilization
   num_workers: 4
   image_height: 250                 # Adjusted to 250 for 10x10 patches
   image_width: 250                  # Adjusted to 250 for 10x10 patches
@@ -47,7 +47,9 @@ data:
 
 training:
   num_epochs: 20                    # Training epochs
-  learning_rate: 0.01               # Increased learning rate for faster convergence
+  learning_rate: 0.001              # Unified learning rate for all components
+  backbone_lr: 0.001                # Same as learning_rate to avoid confusion
+  other_lr: 0.001                   # Same as learning_rate to avoid confusion
   weight_decay: 0.0005
   momentum: 0.9
   warm_epochs: 2                    # Warmup epochs

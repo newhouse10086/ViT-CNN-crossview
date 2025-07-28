@@ -1,0 +1,165 @@
+# FSRA-CRN: Context-aware Region-alignment Network Configuration
+# 专注于跨视角图像匹配任务，适用于University-1652数据集
+
+model:
+  name: "FSRA_CRN"
+  num_classes: 701
+  feature_dim: 256
+  
+  # 多尺度残差特征提取器 (MSRFE)
+  msrfe:
+    input_channels: 3
+    pyramid_channels: [128, 256, 512, 1024]
+    fpn_out_channels: 256
+    adaptive_pool_sizes: [[16, 16], [8, 8], [4, 4], [2, 2]]
+  
+  # 魔方注意力模块 (RCA) - 借鉴CEUSP思路
+  rubiks_attention:
+    num_rotations: 6              # 模拟魔方的6种基本旋转
+    enable_3d_encoding: true      # 启用3D位置编码
+    
+  # 动态上下文融合 (DCF)
+  dynamic_context:
+    context_kernels: [1, 3, 3, 3]     # 多尺度上下文核
+    context_dilations: [1, 1, 2, 4]   # 空洞卷积扩张率
+    
+  # 自适应区域对齐 (ARA)
+  adaptive_regions:
+    num_regions: 6                # 区域数量（与原始FSRA保持一致）
+    attention_heads: 8            # 跨视角注意力头数
+    dropout: 0.1
+
+data:
+  dataset: "University-1652"
+  data_dir: "data"
+  batch_size: 12                  # 适中的批量大小
+  num_workers: 4
+  image_height: 256               # 标准图像尺寸
+  image_width: 256
+  
+  # 数据增强策略
+  augmentation:
+    random_crop: true
+    random_flip: true
+    color_jitter: true
+    random_erasing: true
+    normalize: true
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+
+training:
+  num_epochs: 120
+  learning_rate: 0.0003           # 较低学习率适合复杂网络
+  weight_decay: 0.0005
+  momentum: 0.9
+  
+  # 学习率调度
+  scheduler:
+    type: "MultiStepLR"
+    milestones: [40, 80, 110]
+    gamma: 0.1
+  
+  # 损失函数权重
+  loss_weights:
+    global_loss: 1.0
+    regional_loss: 0.8            # 区域损失权重
+    alignment_loss: 0.5           # 特征对齐损失
+    consistency_loss: 0.3         # 一致性损失
+
+# 创新实验配置
+experiments:
+  # 对比基线方法
+  baselines: [
+    "original_fsra",              # 原始FSRA
+    "resnet50_baseline",          # ResNet50基线
+    "densenet_baseline",          # DenseNet基线
+    "efficientnet_baseline"       # EfficientNet基线
+  ]
+  
+  # 消融实验
+  ablation_studies:
+    - "no_rubiks_attention"       # 移除魔方注意力
+    - "no_dynamic_context"        # 移除动态上下文融合
+    - "no_adaptive_regions"       # 移除自适应区域对齐
+    - "single_scale_features"     # 使用单尺度特征
+    - "fixed_regions"             # 使用固定区域（原始FSRA方式）
+  
+  # 特征提取器对比
+  feature_extractors:
+    - "msrfe"                     # 我们的多尺度残差提取器
+    - "resnet50"                  # ResNet50
+    - "densenet121"               # DenseNet121
+    - "efficientnet_b0"           # EfficientNet-B0
+
+# 评估指标
+evaluation:
+  metrics: [
+    "recall_at_1",
+    "recall_at_5", 
+    "recall_at_10",
+    "average_precision",
+    "mean_average_precision"
+  ]
+  
+  # 评估设置
+  evaluation_splits: [
+    "drone_to_satellite",         # 无人机->卫星
+    "satellite_to_drone"          # 卫星->无人机
+  ]
+  
+  # 可视化分析
+  visualization:
+    attention_maps: true          # 魔方注意力可视化
+    region_masks: true            # 区域mask可视化
+    feature_similarity: true      # 特征相似度可视化
+    failure_analysis: true        # 失败案例分析
+
+# 系统配置
+system:
+  gpu_ids: "0"
+  mixed_precision: true          # 混合精度训练
+  gradient_accumulation: 2       # 梯度累积
+  max_grad_norm: 1.0            # 梯度裁剪
+  
+# 与原始FSRA对比实验
+fsra_comparison:
+  # 性能指标对比
+  expected_improvements:
+    recall_at_1: "+8.5%"         # 相比原始FSRA的预期提升
+    average_precision: "+6.2%"
+    inference_speed: "similar"    # 推理速度保持相近
+    memory_usage: "+15%"          # 内存使用略有增加
+  
+  # 关键创新点
+  key_innovations: [
+    "多尺度残差特征提取器替代简单CNN backbone",
+    "魔方注意力机制捕获复杂空间关系", 
+    "动态上下文融合自适应整合多尺度信息",
+    "自适应区域对齐超越固定区域分割"
+  ]
+  
+  # 论文贡献
+  paper_contributions: [
+    "首次将魔方旋转思想引入跨视角匹配",
+    "设计多尺度残差架构专门优化图像匹配任务",
+    "提出动态上下文融合策略提升特征表达",
+    "实现自适应区域发现和对齐算法"
+  ]
+
+# 训练监控
+monitoring:
+  log_interval: 50               # 日志记录间隔
+  save_interval: 10              # 模型保存间隔
+  eval_interval: 5               # 评估间隔
+  
+  # TensorBoard配置
+  tensorboard:
+    log_dir: "logs/fsra_crn"
+    log_images: true
+    log_histograms: false
+    
+  # 早停策略
+  early_stopping:
+    patience: 15
+    min_delta: 0.001
+    monitor: "recall_at_1" 

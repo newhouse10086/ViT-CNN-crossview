@@ -1,0 +1,249 @@
+# FSRA-VMK: Vision Mamba Kolmogorov Network Configuration
+# 基于2024年最新神经网络模块的跨视角图像匹配架构
+
+model:
+  name: "FSRA_VMK"
+  num_classes: 701
+  img_size: 256
+  
+  # Vision Mamba Encoder 配置
+  vision_mamba:
+    embed_dim: 384                    # Mamba嵌入维度
+    depth: 12                         # Mamba块深度
+    d_state: 16                       # 状态空间维度
+    d_conv: 4                         # 卷积核大小
+    expand_ratio: 2                   # 扩展比例
+    patch_size: 16                    # Patch大小
+    
+  # Kolmogorov-Arnold Networks 配置
+  kan:
+    grid_size: 5                      # KAN样条网格大小
+    scale_noise: 0.1                  # 噪声缩放
+    scale_base: 1.0                   # 基础缩放
+    scale_spline: 1.0                 # 样条缩放
+    
+  # ConvNeXt V2 Fusion 配置
+  convnext_v2:
+    fusion_channels: 256              # 融合通道数
+    layer_scale_init: 1e-6            # Layer Scale初始值
+    drop_path: 0.1                    # Drop Path率
+    grn_enabled: true                 # 启用Global Response Norm
+    
+  # Bidirectional Cross-View Alignment 配置
+  cross_view_alignment:
+    feature_dim: 256
+    num_heads: 8                      # KAN注意力头数
+    hidden_dim: 1024                  # 隐藏层维度
+    num_layers: 3                     # 对齐层数
+    
+  # 分类器配置
+  classifiers:
+    global_hidden: 512                # 全局分类器隐藏层
+    regional_hidden: 256              # 区域分类器隐藏层
+    semantic_classes: 175             # 语义类别数(701/4)
+    dropout: 0.2                      # Dropout率
+
+data:
+  dataset: "University-1652"
+  data_dir: "data"
+  batch_size: 8                       # 较小批量（Vision Mamba + KAN计算量大）
+  num_workers: 4
+  image_height: 256
+  image_width: 256
+  
+  # 数据增强 (针对Mamba优化)
+  augmentation:
+    random_crop: true
+    random_flip: true
+    color_jitter: 
+      brightness: 0.2
+      contrast: 0.2
+      saturation: 0.2
+      hue: 0.1
+    random_erasing:
+      probability: 0.25
+      scale: [0.02, 0.33]
+    mixup:
+      alpha: 0.2                      # Mixup增强
+      enabled: true
+    cutmix:
+      alpha: 1.0                      # CutMix增强
+      enabled: true
+    normalize: true
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+
+training:
+  num_epochs: 150                     # 更多epoch适应复杂模型
+  learning_rate: 0.0001               # 较低学习率
+  weight_decay: 0.05                  # 较强正则化
+  warmup_epochs: 10                   # 预热期
+  
+  # 优化器 (AdamW适合Vision Mamba)
+  optimizer:
+    type: "AdamW"
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    
+  # 学习率调度 (Cosine退火)
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 150
+    eta_min: 1e-6
+    
+  # 混合精度训练
+  mixed_precision: true
+  gradient_clipping: 1.0
+  
+  # 损失函数权重
+  loss_weights:
+    global_loss: 1.0                  # 全局分类损失
+    regional_loss: 0.6                # 区域分类损失
+    semantic_loss: 0.4                # 语义分类损失 (新增)
+    alignment_loss: 0.3               # 跨视角对齐损失
+    consistency_loss: 0.2             # 一致性损失
+    kan_regularization: 0.01          # KAN正则化损失
+
+# 2024最新技术实验
+advanced_experiments:
+  # 对比2024最新方法
+  sota_baselines: [
+    "vision_mamba_v1",                # Vision Mamba原版
+    "convnext_v2",                    # ConvNeXt V2
+    "efficientvit_b3",                # EfficientViT
+    "fastviт_sa24",                   # FastViT
+    "mobilevit_v3",                   # MobileViT v3
+  ]
+  
+  # KAN消融实验
+  kan_ablations:
+    - "no_kan_attention"              # 移除KAN注意力
+    - "no_kan_classifier"             # 移除KAN分类器
+    - "traditional_mlp"               # 使用传统MLP
+    - "different_grid_sizes"          # 不同网格大小 [3,5,7,9]
+    
+  # Vision Mamba消融
+  mamba_ablations:
+    - "different_depths"              # 不同深度 [6,9,12,15]
+    - "different_d_state"             # 不同状态维度 [8,16,32]
+    - "no_selective_scan"             # 移除选择性扫描
+    
+  # ConvNeXt V2消融
+  convnext_ablations:
+    - "no_grn"                        # 移除Global Response Norm
+    - "no_layer_scale"                # 移除Layer Scale
+    - "original_convnext"             # 使用原版ConvNeXt
+
+# 评估指标 (增强版)
+evaluation:
+  metrics: [
+    "recall_at_1",
+    "recall_at_5", 
+    "recall_at_10",
+    "recall_at_20",
+    "average_precision",
+    "mean_average_precision",
+    "normalized_dcg",                 # NDCG指标
+    "mean_reciprocal_rank"            # MRR指标
+  ]
+  
+  # 评估设置
+  evaluation_splits: [
+    "drone_to_satellite",
+    "satellite_to_drone",
+    "cross_dataset_generalization"    # 跨数据集泛化
+  ]
+  
+  # 高级可视化
+  visualization:
+    mamba_state_evolution: true       # Mamba状态演化可视化
+    kan_spline_functions: true        # KAN样条函数可视化
+    attention_heatmaps: true          # 注意力热力图
+    feature_tsne: true                # 特征t-SNE可视化
+    similarity_matrices: true         # 相似性矩阵
+    failure_case_analysis: true       # 失败案例分析
+
+# 系统配置 (针对复杂模型优化)
+system:
+  gpu_ids: "0"
+  mixed_precision: true
+  gradient_accumulation: 4            # 梯度累积（应对大模型）
+  max_grad_norm: 1.0
+  compile_model: true                 # PyTorch 2.0编译加速
+  
+  # 内存优化
+  memory_optimization:
+    gradient_checkpointing: true      # 梯度检查点
+    pin_memory: true                  # 固定内存
+    non_blocking: true                # 非阻塞传输
+
+# 与现有方法对比
+method_comparison:
+  # 预期性能提升 (相比FSRA-CRN)
+  expected_improvements:
+    recall_at_1: "+12.3%"             # 相比FSRA-CRN的额外提升
+    average_precision: "+9.7%"
+    model_efficiency: "+15%"          # Mamba线性复杂度优势
+    memory_usage: "+5%"               # 内存使用略增
+    
+  # 核心技术差异
+  technical_differences: [
+    "Vision Mamba替代传统CNN/Transformer - 线性复杂度",
+    "Kolmogorov-Arnold Networks替代MLP - 更强表达能力",
+    "ConvNeXt V2现代化卷积设计 - Global Response Norm",
+    "双向跨视角对齐 - 超越单向注意力机制"
+  ]
+  
+  # 创新贡献点
+  novel_contributions: [
+    "首次将Vision Mamba应用于跨视角图像匹配",
+    "pioneering使用KAN网络设计注意力机制",
+    "创新性ConvNeXt V2多尺度特征融合策略",
+    "双向对齐算法突破传统单向限制"
+  ]
+
+# 训练监控
+monitoring:
+  log_interval: 25                    # 更频繁的日志记录
+  save_interval: 10
+  eval_interval: 5
+  
+  # TensorBoard高级配置
+  tensorboard:
+    log_dir: "logs/fsra_vmk"
+    log_images: true
+    log_histograms: true
+    log_embeddings: true              # 特征嵌入可视化
+    
+  # WandB集成 (可选)
+  wandb:
+    project: "fsra_vmk_crossview"
+    entity: "your_username"
+    tags: ["vision_mamba", "kan", "convnext_v2", "2024"]
+    
+  # 早停策略
+  early_stopping:
+    patience: 20                      # 更大耐心值
+    min_delta: 0.0005
+    monitor: "recall_at_1"
+    
+# 模型部署
+deployment:
+  # 模型量化
+  quantization:
+    enabled: false                    # KAN暂不支持量化
+    backend: "qnnpack"
+    
+  # 模型剪枝
+  pruning:
+    enabled: true
+    sparsity: 0.1                     # 10%稀疏度
+    
+  # ONNX导出
+  onnx_export:
+    enabled: true
+    opset_version: 11
+    
+  # TensorRT加速 (如果支持)
+  tensorrt:
+    enabled: false                    # Vision Mamba支持有限 
