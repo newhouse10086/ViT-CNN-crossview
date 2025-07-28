@@ -76,7 +76,8 @@ class KANLinear(nn.Module):
         
         # 样条函数计算
         spline_bases = self.b_splines(x)  # (batch, in_features, grid_size + 1)
-        spline_output = torch.einsum('bio,oig->bo', spline_bases, self.spline_weight)
+        # 正确的维度标签应为 b i g 和 o i g -> b o
+        spline_output = torch.einsum('big,oig->bo', spline_bases, self.spline_weight)
         
         return self.scale_base * base_output + self.scale_spline * spline_output
 
