@@ -186,6 +186,17 @@ def calculate_enhanced_accuracy(outputs, labels, num_semantic_classes: int = Non
     metrics['regional_accuracy_mean'] = np.mean(regional_accs)
     metrics['regional_accuracy_std'] = np.std(regional_accs)
     
+    # 卫星 / 无人机 精度
+    if 'satellite_prediction' in outputs and 'drone_prediction' in outputs:
+        sat_pred_logits = outputs['satellite_prediction']
+        drone_pred_logits = outputs['drone_prediction']
+        _, sat_pred_labels = torch.max(sat_pred_logits.data, 1)
+        _, drone_pred_labels = torch.max(drone_pred_logits.data, 1)
+        sat_acc = (sat_pred_labels == labels).sum().item() / labels.size(0)
+        drone_acc = (drone_pred_labels == labels).sum().item() / labels.size(0)
+        metrics['satellite_accuracy'] = sat_acc
+        metrics['drone_accuracy'] = drone_acc
+
     # 语义精度
     if 'semantic_prediction' in outputs:
         semantic_pred = outputs['semantic_prediction']
@@ -489,8 +500,11 @@ def main():
             logger.info(f"  🧮 KAN Regularization: {epoch_losses['kan_regularization']:.4f}")
         
         logger.info(f"  ✅ Global Accuracy: {epoch_metrics['global_accuracy']:.4f}")
-        logger.info(f"  📊 Regional Accuracy: {epoch_metrics['regional_accuracy_mean']:.4f} ± {epoch_metrics['regional_accuracy_std']:.4f}")
-        logger.info(f"  🎖️  Top-5 Accuracy: {epoch_metrics['top5_accuracy']:.4f}")
+        logger.info(
+            f"  📊 Regional Accuracy: {epoch_metrics['regional_accuracy_mean']:.4f} ± {epoch_metrics['regional_accuracy_std']:.4f}")
+        if 'satellite_accuracy' in epoch_metrics:
+            logger.info(f"  🛰️ Satellite Accuracy: {epoch_metrics['satellite_accuracy']:.4f}")
+            logger.info(f"  🚁 Drone Accuracy: {epoch_metrics['drone_accuracy']:.4f}")
         
         if 'semantic_accuracy' in epoch_metrics:
             logger.info(f"  🧠 Semantic Accuracy: {epoch_metrics['semantic_accuracy']:.4f}")
@@ -499,8 +513,8 @@ def main():
         cls_loss_val = epoch_losses.get('global_loss', 0.0)
         kl_loss_val = epoch_losses.get('alignment_loss', 0.0)
         triplet_loss_val = epoch_losses.get('regional_loss', 0.0)
-        sat_acc_val = epoch_metrics.get('global_accuracy', 0.0)
-        drone_acc_val = epoch_metrics.get('global_accuracy', 0.0)  # 模拟无人机精度
+        sat_acc_val = epoch_metrics.get('satellite_accuracy', epoch_metrics.get('global_accuracy', 0.0))
+        drone_acc_val = epoch_metrics.get('drone_accuracy', epoch_metrics.get('global_accuracy', 0.0))
         print()
         print(f"Epoch {epoch}/{num_epochs-1}")
         print("----------")

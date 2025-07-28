@@ -75,7 +75,7 @@ data:
 
 training:
   num_epochs: 150                     # 更多epoch适应复杂模型
-  learning_rate: 0.0001               # 较低学习率
+  learning_rate: 0.01                 # 调整为0.01
   weight_decay: 0.05                  # 较强正则化
   warmup_epochs: 10                   # 预热期
   

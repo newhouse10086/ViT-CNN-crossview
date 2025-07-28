@@ -658,8 +658,16 @@ class FSRAVMKModel(nn.Module):
         # 双向跨视角对齐
         aligned_features = self.cross_view_alignment(sat_fused, uav_fused)
         
-        # 多头分类
+        # ---- 全局分类器 ----
+        # 1) 对齐后的融合特征 (global)
         global_pred = self.global_classifier(aligned_features)
+
+        # 2) 卫星 / 无人机 独立预测 (用于精度统计)
+        sat_global_pool = F.adaptive_avg_pool2d(sat_fused, 1).flatten(1)  # (B, 256)
+        uav_global_pool = F.adaptive_avg_pool2d(uav_fused, 1).flatten(1)
+
+        satellite_pred = self.global_classifier(sat_global_pool)
+        drone_pred = self.global_classifier(uav_global_pool)
         
         regional_preds = []
         for classifier in self.regional_classifiers:
@@ -672,6 +680,8 @@ class FSRAVMKModel(nn.Module):
             'global_prediction': global_pred,
             'regional_predictions': regional_preds,
             'semantic_prediction': semantic_pred,
+            'satellite_prediction': satellite_pred,
+            'drone_prediction': drone_pred,
             'aligned_features': aligned_features,
             'sat_fused': sat_fused,
             'uav_fused': uav_fused
