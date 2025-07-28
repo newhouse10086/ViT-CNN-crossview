@@ -199,39 +199,39 @@ class FSRAViTImproved(nn.Module):
             target_dim=target_pca_dim
         )
         
-        # Global classifier (on fused features)
+        # Global classifier (on fused features) - Fixed dimension matching
         self.global_classifier = ClassBlock(
-            input_dim=fusion_dim,
-            class_num=num_classes,
-            num_bottleneck=target_pca_dim,  # Use same bottleneck as regional
+            input_dim=fusion_dim,            # 200 (CNN 100 + ViT 100)
+            class_num=num_classes,           # 701
+            num_bottleneck=fusion_dim,       # Use fusion_dim instead of target_pca_dim
             return_f=True
         )
         
         # Regional classifiers for each cluster
         self.regional_classifiers = nn.ModuleList([
             ClassBlock(
-                input_dim=target_pca_dim,
-                class_num=num_classes,
-                num_bottleneck=target_pca_dim,
+                input_dim=target_pca_dim,    # 256 (from K-means clustering)
+                class_num=num_classes,       # 701
+                num_bottleneck=target_pca_dim,  # 256
                 return_f=True
             ) for _ in range(num_clusters)
         ])
         
         # Feature fusion for final prediction
-        # Now all features are target_pca_dim (256): global + 3 regional = 4 * 256 = 1024
-        final_fusion_dim = target_pca_dim + num_clusters * target_pca_dim
+        # Global features: fusion_dim (200), Regional features: num_clusters * target_pca_dim (3 * 256 = 768)
+        final_fusion_dim = fusion_dim + num_clusters * target_pca_dim  # 200 + 768 = 968
         self.feature_fusion = nn.Sequential(
-            nn.Linear(final_fusion_dim, target_pca_dim),  # Output consistent dimension
-            nn.BatchNorm1d(target_pca_dim),
+            nn.Linear(final_fusion_dim, fusion_dim),  # 968 -> 200
+            nn.BatchNorm1d(fusion_dim),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5)
         )
         
-        # Final classifier
+        # Final classifier - Fixed dimension
         self.final_classifier = ClassBlock(
-            input_dim=target_pca_dim,  # Input from feature_fusion
-            class_num=num_classes,
-            num_bottleneck=target_pca_dim,
+            input_dim=fusion_dim,            # 200 (from feature_fusion)
+            class_num=num_classes,           # 701
+            num_bottleneck=fusion_dim,       # 200
             return_f=True
         )
         
