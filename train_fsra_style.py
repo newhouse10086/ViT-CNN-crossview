@@ -226,6 +226,8 @@ def main():
         center_weight=args.center_weight,
         triplet_margin=args.triplet_margin
     )
+    # Move loss function to device
+    criterion = criterion.to(device)
     training_logger.info(f"FSRA-style loss created: triplet_weight={args.triplet_weight}, center_weight={args.center_weight}")
     
     # Create optimizer

@@ -83,7 +83,7 @@ class CenterLoss(nn.Module):
 
         # Ensure centers are on the same device as features
         if self.centers.device != features.device:
-            self.centers = self.centers.to(features.device)
+            self.centers.data = self.centers.data.to(features.device)
 
         # Get centers for current batch
         centers_batch = self.centers[labels]  # (N, D)
