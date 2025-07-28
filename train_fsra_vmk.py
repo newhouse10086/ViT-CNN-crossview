@@ -160,8 +160,13 @@ class ContrastiveLoss(nn.Module):
         return loss
 
 
-def calculate_enhanced_accuracy(outputs, labels):
-    """计算增强的精度指标"""
+def calculate_enhanced_accuracy(outputs, labels, num_semantic_classes: int = None):
+    """计算增强的精度指标
+    Args:
+        outputs: 模型输出字典
+        labels: 原始类别标签 tensor
+        num_semantic_classes: 语义类别数，用于截断 semantic_labels
+    """
     metrics = {}
     
     # 全局精度
@@ -185,13 +190,15 @@ def calculate_enhanced_accuracy(outputs, labels):
     if 'semantic_prediction' in outputs:
         semantic_pred = outputs['semantic_prediction']
         semantic_labels = torch.div(labels, 4, rounding_mode='trunc')
-        semantic_labels = torch.clamp(semantic_labels, max=self.num_semantic_classes - 1)
+        if num_semantic_classes is None:
+            num_semantic_classes = semantic_pred.size(1)
+        semantic_labels = torch.clamp(semantic_labels, max=num_semantic_classes - 1)
         _, semantic_predicted = torch.max(semantic_pred.data, 1)
         semantic_acc = (semantic_predicted == semantic_labels).sum().item() / labels.size(0)
         metrics['semantic_accuracy'] = semantic_acc
     
     # Top-5精度
-    _, top5_predicted = torch.topk(global_pred.data, 5, dim=1)
+    _, top5_predicted = torch.topk(global_pred.data, k=min(5, global_pred.size(1)), dim=1)
     top5_correct = top5_predicted.eq(labels.view(-1, 1).expand_as(top5_predicted)).sum().item()
     metrics['top5_accuracy'] = top5_correct / labels.size(0)
     
@@ -249,7 +256,7 @@ def train_epoch_vmk(model, dataloader, criterion, optimizer, device, epoch, writ
             
             # 计算精度指标
             with torch.no_grad():
-                metrics = calculate_enhanced_accuracy(outputs, labels)
+                metrics = calculate_enhanced_accuracy(outputs, labels, num_semantic_classes=criterion.num_semantic_classes)
                 for metric_name, metric_value in metrics.items():
                     if metric_name not in running_metrics:
                         running_metrics[metric_name] = 0.0
