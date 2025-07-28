@@ -261,7 +261,9 @@ def train_epoch_vmk(model, dataloader, criterion, optimizer, device, epoch, writ
                                     metrics['semantic_accuracy'], global_step)
                 
         except Exception as e:
-            print(f"Error in batch {batch_idx}: {e}")
+            import traceback
+            print(f"Error in batch {batch_idx}: {type(e).__name__}: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
             continue
     
     # 计算epoch平均值
