@@ -48,7 +48,7 @@ data:
 
 training:
   num_epochs: 20                    # Training epochs
-  learning_rate: 0.001              # Base learning rate
+  learning_rate: 0.003              # Increased learning rate for better convergence
   weight_decay: 0.0005
   momentum: 0.9
   warm_epochs: 2                    # Warmup epochs

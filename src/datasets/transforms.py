@@ -29,8 +29,9 @@ class RandomErasing:
             aspect_ratio = torch.rand(1) * (1 / self.r1 - self.r1) + self.r1
             aspect_ratio = aspect_ratio.item()
             
-            h = int(torch.round(torch.tensor((target_area * aspect_ratio) ** 0.5)).item())
-            w = int(torch.round(torch.tensor((target_area / aspect_ratio) ** 0.5)).item())
+            # Fixed: Use proper tensor operations without torch.tensor(sourceTensor)
+            h = int(torch.round((target_area * aspect_ratio) ** 0.5).item())
+            w = int(torch.round((target_area / aspect_ratio) ** 0.5).item())
             
             if w < img.size()[2] and h < img.size()[1]:
                 x1 = torch.randint(0, img.size()[1] - h + 1, (1,)).item()
