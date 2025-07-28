@@ -398,3 +398,33 @@ class FSRAViTImproved(nn.Module):
             },
             'alignment': None  # No alignment loss for this model
         }
+
+
+def create_fsra_vit_improved(num_classes=701,
+                           num_clusters=3,
+                           patch_size=10,
+                           cnn_output_dim=100,
+                           vit_output_dim=100,
+                           target_pca_dim=256):
+    """
+    Create FSRA ViT Improved model.
+
+    Args:
+        num_classes: Number of classes for classification
+        num_clusters: Number of clusters for community clustering
+        patch_size: Patch size for ViT (default: 10)
+        cnn_output_dim: CNN branch output dimension
+        vit_output_dim: ViT branch output dimension
+        target_pca_dim: Target dimension for PCA alignment
+
+    Returns:
+        FSRAViTImproved model instance
+    """
+    return FSRAViTImproved(
+        num_classes=num_classes,
+        num_clusters=num_clusters,
+        patch_size=patch_size,
+        cnn_output_dim=cnn_output_dim,
+        vit_output_dim=vit_output_dim,
+        target_pca_dim=target_pca_dim
+    )
