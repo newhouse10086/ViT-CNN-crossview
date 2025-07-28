@@ -336,18 +336,22 @@ class FSRAViTImproved(nn.Module):
         Returns:
             Dictionary containing predictions from different levels
         """
-        # Use satellite image for feature extraction (can be extended to both)
-        x = sat_img
-        B = x.shape[0]
+        # Process both satellite and drone images
+        B = sat_img.shape[0]
 
+        # Satellite branch
+        sat_cnn_features = self.cnn_backbone(sat_img)  # (B, 512, 8, 8)
+        sat_cnn_features = self.cnn_dim_reduction(sat_cnn_features)  # (B, 100, 8, 8)
+        sat_vit_features = self.vit_branch(sat_img)  # (B, 100, 8, 8)
 
-        
-        # CNN Branch: ResNet18 + dimension reduction
-        cnn_features = self.cnn_backbone(x)  # (B, 512, 8, 8)
-        cnn_features = self.cnn_dim_reduction(cnn_features)  # (B, 100, 8, 8)
+        # Drone branch (using same networks)
+        drone_cnn_features = self.cnn_backbone(drone_img)  # (B, 512, 8, 8)
+        drone_cnn_features = self.cnn_dim_reduction(drone_cnn_features)  # (B, 100, 8, 8)
+        drone_vit_features = self.vit_branch(drone_img)  # (B, 100, 8, 8)
 
-        # ViT Branch: 10x10 patches -> ViT -> spatial features
-        vit_features = self.vit_branch(x)  # (B, 100, 8, 8)
+        # Fuse satellite and drone features
+        cnn_features = (sat_cnn_features + drone_cnn_features) / 2  # Average fusion
+        vit_features = (sat_vit_features + drone_vit_features) / 2  # Average fusion
         
         # Feature Fusion: Concat CNN and ViT features
         fused_features = torch.cat([cnn_features, vit_features], dim=1)  # (B, 200, 8, 8)
