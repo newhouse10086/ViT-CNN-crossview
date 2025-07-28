@@ -38,6 +38,8 @@ class FSRAVMKLoss(nn.Module):
         self.cls_loss = nn.CrossEntropyLoss(label_smoothing=0.1)
         self.mse_loss = nn.MSELoss()
         self.kl_loss = nn.KLDivLoss(reduction='batchmean')
+        # 语义类别数
+        self.num_semantic_classes = num_classes // 4 if num_classes >= 4 else num_classes
         
         # 高级损失函数
         self.focal_loss = FocalLoss(alpha=0.25, gamma=2.0)
@@ -67,7 +69,9 @@ class FSRAVMKLoss(nn.Module):
         if 'semantic_prediction' in outputs:
             semantic_pred = outputs['semantic_prediction']
             # 语义标签是类别标签的粗粒度版本
-            semantic_labels = labels // 4  # 简单的语义标签生成
+            # 使用trunc舍入并限制到有效范围内
+            semantic_labels = torch.div(labels, 4, rounding_mode='trunc')
+            semantic_labels = torch.clamp(semantic_labels, max=self.num_semantic_classes - 1)
             semantic_loss = self.cls_loss(semantic_pred, semantic_labels)
             losses['semantic_loss'] = semantic_loss
             total_loss += self.loss_weights['semantic_loss'] * semantic_loss
@@ -180,7 +184,8 @@ def calculate_enhanced_accuracy(outputs, labels):
     # 语义精度
     if 'semantic_prediction' in outputs:
         semantic_pred = outputs['semantic_prediction']
-        semantic_labels = labels // 4
+        semantic_labels = torch.div(labels, 4, rounding_mode='trunc')
+        semantic_labels = torch.clamp(semantic_labels, max=self.num_semantic_classes - 1)
         _, semantic_predicted = torch.max(semantic_pred.data, 1)
         semantic_acc = (semantic_predicted == semantic_labels).sum().item() / labels.size(0)
         metrics['semantic_accuracy'] = semantic_acc
