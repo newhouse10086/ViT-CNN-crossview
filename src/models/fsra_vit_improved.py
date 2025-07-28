@@ -250,39 +250,64 @@ class FSRAViTImproved(nn.Module):
             Dictionary containing predictions and features
         """
         B = sat_img.shape[0]
+        print(f"🔍 Forward pass debug - Batch size: {B}")
         
         # Ensure input size is correct (250x250)
         assert sat_img.shape[2:] == (250, 250), f"Satellite image size should be 250x250, got {sat_img.shape[2:]}"
         assert drone_img.shape[2:] == (250, 250), f"Drone image size should be 250x250, got {drone_img.shape[2:]}"
+        print(f"✅ Input shapes - sat: {sat_img.shape}, drone: {drone_img.shape}")
         
         # CNN Branch processing
         sat_cnn_features = self.cnn_backbone(sat_img)   # (B, 512, H, W)
         drone_cnn_features = self.cnn_backbone(drone_img)  # (B, 512, H, W)
+        print(f"📊 CNN backbone output - sat: {sat_cnn_features.shape}, drone: {drone_cnn_features.shape}")
         
         # CNN dimension reduction and spatial alignment
         sat_cnn_features = self.cnn_dim_reduction(sat_cnn_features)    # (B, 100, 8, 8)
         drone_cnn_features = self.cnn_dim_reduction(drone_cnn_features)  # (B, 100, 8, 8)
+        print(f"🔧 CNN after dim reduction - sat: {sat_cnn_features.shape}, drone: {drone_cnn_features.shape}")
         
         # ViT Branch processing (now with 250x250 input and 100 patches)
         sat_vit_features = self.vit_branch(sat_img)     # (B, 100, 8, 8)
         drone_vit_features = self.vit_branch(drone_img)  # (B, 100, 8, 8)
+        print(f"🤖 ViT output - sat: {sat_vit_features.shape}, drone: {drone_vit_features.shape}")
 
         # Fuse satellite and drone features
         cnn_features = (sat_cnn_features + drone_cnn_features) / 2  # Average fusion
         vit_features = (sat_vit_features + drone_vit_features) / 2  # Average fusion
+        print(f"🔀 After fusion - CNN: {cnn_features.shape}, ViT: {vit_features.shape}")
         
         # Feature Fusion: Concat CNN and ViT features
         fused_features = torch.cat([cnn_features, vit_features], dim=1)  # (B, 200, 8, 8)
+        print(f"🧩 Fused features shape: {fused_features.shape}")
         
         # Global average pooling for global classification
         global_feat = F.adaptive_avg_pool2d(fused_features, (1, 1)).view(B, -1)  # (B, 200)
+        print(f"🌐 Global features after pooling: {global_feat.shape}")
+        
+        # Check global classifier input dimension
+        print(f"🎯 Global classifier expects: {self.global_classifier.add_block[0].in_features} dim")
+        print(f"🎯 Global classifier bottleneck: {self.global_classifier.add_block[0].out_features} dim")
         
         # Global classification
-        global_output = self.global_classifier(global_feat)
-        global_pred, global_f = global_output  # Unpack the list
+        try:
+            global_output = self.global_classifier(global_feat)
+            global_pred, global_f = global_output  # Unpack the list
+            print(f"✅ Global classifier success - pred: {global_pred.shape}, feat: {global_f.shape}")
+        except Exception as e:
+            print(f"❌ Global classifier error: {e}")
+            print(f"   Input shape: {global_feat.shape}")
+            print(f"   Expected: {self.global_classifier.add_block[0].in_features}")
+            raise e
         
         # K-means clustering on fused features (now with better performance)
-        clustered_features, communities = self.kmeans_clustering(fused_features)  # (B, 3, 256)
+        try:
+            clustered_features, communities = self.kmeans_clustering(fused_features)  # (B, 3, 256)
+            print(f"🎯 K-means clustering success: {clustered_features.shape}")
+        except Exception as e:
+            print(f"❌ K-means clustering error: {e}")
+            print(f"   Input shape: {fused_features.shape}")
+            raise e
         
         # Regional classification
         regional_preds = []
@@ -290,21 +315,49 @@ class FSRAViTImproved(nn.Module):
 
         for i, regional_classifier in enumerate(self.regional_classifiers):
             regional_input = clustered_features[:, i, :]  # (B, 256)
-            regional_output = regional_classifier(regional_input)
-            regional_pred, regional_f = regional_output  # Unpack the list
-            regional_preds.append(regional_pred)
-            regional_feats.append(regional_f)
+            print(f"🏘️ Regional {i} input shape: {regional_input.shape}")
+            print(f"🏘️ Regional {i} classifier expects: {regional_classifier.add_block[0].in_features} dim")
+            
+            try:
+                regional_output = regional_classifier(regional_input)
+                regional_pred, regional_f = regional_output  # Unpack the list
+                regional_preds.append(regional_pred)
+                regional_feats.append(regional_f)
+                print(f"✅ Regional {i} success - pred: {regional_pred.shape}, feat: {regional_f.shape}")
+            except Exception as e:
+                print(f"❌ Regional {i} error: {e}")
+                raise e
         
         # Feature fusion for final prediction
         all_features = torch.cat([global_f] + regional_feats, dim=1)  # (B, final_fusion_dim)
-        fused_features_final = self.feature_fusion(all_features)  # (B, fusion_dim)
+        print(f"🔗 All features concatenated: {all_features.shape}")
+        print(f"🔗 Feature fusion expects: {self.feature_fusion[0].in_features} dim")
+        
+        try:
+            fused_features_final = self.feature_fusion(all_features)  # (B, fusion_dim)
+            print(f"✅ Feature fusion success: {fused_features_final.shape}")
+        except Exception as e:
+            print(f"❌ Feature fusion error: {e}")
+            print(f"   Input shape: {all_features.shape}")
+            print(f"   Expected: {self.feature_fusion[0].in_features}")
+            raise e
         
         # Final classification
-        final_output = self.final_classifier(fused_features_final)
-        final_pred, final_f = final_output  # Unpack the list
+        print(f"🏁 Final classifier expects: {self.final_classifier.add_block[0].in_features} dim")
+        
+        try:
+            final_output = self.final_classifier(fused_features_final)
+            final_pred, final_f = final_output  # Unpack the list
+            print(f"✅ Final classifier success - pred: {final_pred.shape}, feat: {final_f.shape}")
+        except Exception as e:
+            print(f"❌ Final classifier error: {e}")
+            print(f"   Input shape: {fused_features_final.shape}")
+            print(f"   Expected: {self.final_classifier.add_block[0].in_features}")
+            raise e
         
         # Prepare output
         predictions = [global_pred] + regional_preds + [final_pred]
+        print(f"🎉 Forward pass completed successfully!")
         
         return {
             'satellite': {
