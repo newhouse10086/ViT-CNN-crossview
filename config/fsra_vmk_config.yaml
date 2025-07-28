@@ -9,7 +9,7 @@ model:
   # Vision Mamba Encoder 配置
   vision_mamba:
     embed_dim: 384                    # Mamba嵌入维度
-    depth: 12                         # Mamba块深度
+    depth: 6                          # Mamba块深度 (简化)
     d_state: 16                       # 状态空间维度
     d_conv: 4                         # 卷积核大小
     expand_ratio: 2                   # 扩展比例
