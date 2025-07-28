@@ -369,13 +369,13 @@ def create_simple_fsra_model(config: Dict[str, Any]) -> nn.Module:
 
 def create_fsra_vit_improved_model(config: Dict[str, Any]) -> nn.Module:
     """
-    Create FSRA ViT Improved model - True ViT+CNN hybrid architecture.
+    Create FSRA ViT Improved model - True ViT+CNN hybrid architecture (No PCA).
 
     Your Innovation:
     - ViT Branch: 10x10 patches -> ViT Transformer
     - CNN Branch: ResNet18 -> Dimension reduction
     - Fusion: Concat ViT + CNN features
-    - Community Clustering + PCA Alignment
+    - Simple K-means Clustering (No PCA)
 
     Args:
         config: Configuration dictionary
@@ -387,17 +387,16 @@ def create_fsra_vit_improved_model(config: Dict[str, Any]) -> nn.Module:
 
     num_classes = model_config['num_classes']
     num_clusters = model_config.get('num_final_clusters', 3)
-    patch_size = model_config.get('patch_size', 10)
+    patch_size = model_config.get('patch_size', 25)  # Updated default
     cnn_output_dim = model_config.get('cnn_output_dim', 100)
     vit_output_dim = model_config.get('vit_output_dim', 100)
-    target_pca_dim = model_config.get('target_pca_dim', 256)
     use_pretrained = model_config.get('use_pretrained', True)
 
     logger.info(f"Creating FSRA ViT Improved model with {num_classes} classes, {num_clusters} clusters")
     logger.info(f"  Patch size: {patch_size}x{patch_size}")
     logger.info(f"  CNN output dim: {cnn_output_dim}")
     logger.info(f"  ViT output dim: {vit_output_dim}")
-    logger.info(f"  PCA target dim: {target_pca_dim}")
+    logger.info(f"  No PCA alignment (simplified)")
 
     model = FSRAViTImproved(
         num_classes=num_classes,
@@ -405,7 +404,6 @@ def create_fsra_vit_improved_model(config: Dict[str, Any]) -> nn.Module:
         patch_size=patch_size,
         cnn_output_dim=cnn_output_dim,
         vit_output_dim=vit_output_dim,
-        target_pca_dim=target_pca_dim,
         use_pretrained=use_pretrained
     )
 

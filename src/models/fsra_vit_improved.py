@@ -116,10 +116,9 @@ class FSRAViTImproved(nn.Module):
         self,
         num_classes: int = 701,
         num_clusters: int = 3,
-        patch_size: int = 10,
+        patch_size: int = 25,
         cnn_output_dim: int = 100,
         vit_output_dim: int = 100,
-        target_pca_dim: int = 256,
         use_pretrained: bool = True
     ):
         super().__init__()
@@ -288,18 +287,16 @@ def create_fsra_vit_improved(num_classes=701,
                            num_clusters=3,
                            patch_size=25,                # Changed from 10 to 25
                            cnn_output_dim=100,
-                           vit_output_dim=100,
-                           target_pca_dim=256):
+                           vit_output_dim=100):
     """
-    Create FSRA ViT Improved model optimized for 10x10 patches.
+    Create FSRA ViT Improved model optimized for 10x10 patches (No PCA).
 
     Args:
         num_classes: Number of classes for classification
-        num_clusters: Number of clusters for community clustering
+        num_clusters: Number of clusters for K-means clustering
         patch_size: Patch size for ViT (default: 25 for 250x250 images -> 10x10 patches)
         cnn_output_dim: CNN branch output dimension
         vit_output_dim: ViT branch output dimension
-        target_pca_dim: Target dimension for PCA alignment
 
     Returns:
         FSRAViTImproved model instance
@@ -309,6 +306,5 @@ def create_fsra_vit_improved(num_classes=701,
         num_clusters=num_clusters,
         patch_size=patch_size,
         cnn_output_dim=cnn_output_dim,
-        vit_output_dim=vit_output_dim,
-        target_pca_dim=target_pca_dim
+        vit_output_dim=vit_output_dim
     )

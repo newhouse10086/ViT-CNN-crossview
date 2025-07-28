@@ -6,22 +6,20 @@ model:
   name: "FSRA_VIT_IMPROVED"
   num_classes: 701
   
-  # Your innovation settings - True ViT+CNN hybrid with optimized 10x10 patches
+  # Your innovation settings - True ViT+CNN hybrid with optimized 10x10 patches (No PCA)
   patch_size: 25                    # 25x25 patches for ViT (250x250 -> 10x10 = 100 patches)
-  num_final_clusters: 3             # Community clustering: 3 adaptive clusters
+  num_final_clusters: 3             # K-means clustering: 3 clusters
   cnn_output_dim: 100              # CNN branch output dimension
   vit_output_dim: 100              # ViT branch output dimension  
-  target_pca_dim: 256              # PCA alignment target dimension
   
   # Feature dimensions
   feature_dim: 200                  # Fused feature dimension (100+100)
   share_weights: true
   
-  # Community clustering settings -> K-means clustering settings
-  similarity_threshold: 0.5         # No longer used for K-means
-  use_community_clustering: false   # Disabled: use K-means instead
-  use_pca_alignment: true          # Keep PCA feature alignment
-  use_kmeans_clustering: true      # Enable K-means clustering
+  # K-means clustering settings (simplified - no PCA)
+  use_community_clustering: false   # Disabled: use simple K-means instead
+  use_pca_alignment: false         # Disabled: no PCA feature alignment
+  use_kmeans_clustering: true      # Enable simple K-means clustering
   
   # ViT specific settings - optimized for 10x10 patches
   vit:
@@ -100,14 +98,14 @@ system:
 
 # Innovation specific settings
 innovation:
-  description: "True ViT+CNN Hybrid with Community Clustering and PCA Alignment - Optimized 10x10 Patches"
+  description: "True ViT+CNN Hybrid with Simple K-means Clustering (No PCA)"
   features:
     - "10x10 patch ViT processing (100 patches total)"
     - "ResNet18 CNN feature extraction"
     - "Dual-branch feature fusion (200D)"
-    - "Graph-based community clustering"
-    - "PCA cross-view feature alignment"
+    - "Simple K-means clustering (3 clusters)"
     - "Multi-level classification (5 levels)"
+    - "No PCA - Direct feature processing"
   
   architecture:
     input_size: [250, 250]          # Adjusted input size
@@ -115,12 +113,12 @@ innovation:
     num_patches: 100                # 10x10 patches (significantly reduced from 625)
     cnn_spatial_size: [8, 8]       # ResNet18 output spatial size
     fusion_method: "concatenation"
-    clustering_method: "community_detection"
-    alignment_method: "pca"
+    clustering_method: "kmeans"
+    alignment_method: "none"        # No alignment needed
   
   performance:
     expected_parameters: "~20M"     # Estimated parameter count
-    expected_memory: "6GB+"         # GPU memory requirement
-    training_time: "~1min/epoch"    # Improved training time with fewer patches
+    expected_memory: "4GB+"         # Reduced GPU memory requirement (no PCA)
+    training_time: "~1min/epoch"    # Fast training time with simplified architecture
 
 mode: 0  # Training mode
