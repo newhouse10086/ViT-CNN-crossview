@@ -109,7 +109,7 @@ class KolmogorovArnoldAttention(nn.Module):
         B, N, C = x.shape
         
         # 将3D输入reshape为2D供KAN使用
-        x_flat = x.view(-1, C)  # (B*N, C)
+        x_flat = x.contiguous().view(-1, C)  # (B*N, C)
         
         # KAN-based Q, K, V computation
         q_flat = self.q_kan(x_flat)  # (B*N, C)
@@ -117,9 +117,9 @@ class KolmogorovArnoldAttention(nn.Module):
         v_flat = self.v_kan(x_flat)  # (B*N, C)
         
         # Reshape back to (B, N, C) then to attention format
-        q = q_flat.view(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
-        k = k_flat.view(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
-        v = v_flat.view(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        q = q_flat.contiguous().view(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        k = k_flat.contiguous().view(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        v = v_flat.contiguous().view(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
         
         # 注意力计算
         attn = (q @ k.transpose(-2, -1)) * self.scale
@@ -148,9 +148,9 @@ class KolmogorovArnoldAttention(nn.Module):
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
         
         # KAN投影 - 需要flatten再reshape
-        x_flat = x.view(-1, C)  # (B*N, C)
+        x_flat = x.contiguous().view(-1, C)  # (B*N, C)
         x_proj = self.proj_kan(x_flat)  # (B*N, C)
-        x = x_proj.view(B, N, C)  # (B, N, C)
+        x = x_proj.contiguous().view(B, N, C)  # (B, N, C)
         
         return x
 
@@ -560,9 +560,16 @@ class BidirectionalCrossViewAlignment(nn.Module):
             # 无人机->卫星注意力  
             uav_enhanced = self.uav_to_sat_attention[i](uav_seq, H, W)
             
-            # 特征细化
-            sat_seq = sat_enhanced + self.feature_refinement[i](sat_enhanced)
-            uav_seq = uav_enhanced + self.feature_refinement[i](uav_enhanced)
+            # 特征细化 - 需要处理KAN输入
+            sat_enhanced_flat = sat_enhanced.contiguous().view(-1, sat_enhanced.size(-1))
+            sat_refined_flat = self.feature_refinement[i](sat_enhanced_flat)
+            sat_refined = sat_refined_flat.view_as(sat_enhanced)
+            sat_seq = sat_enhanced + sat_refined
+            
+            uav_enhanced_flat = uav_enhanced.contiguous().view(-1, uav_enhanced.size(-1))
+            uav_refined_flat = self.feature_refinement[i](uav_enhanced_flat)
+            uav_refined = uav_refined_flat.view_as(uav_enhanced)
+            uav_seq = uav_enhanced + uav_refined
         
         # 全局池化
         sat_global = torch.mean(sat_seq, dim=1)  # (B, C)
