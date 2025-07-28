@@ -12,6 +12,7 @@ from .two_view_fsra import make_two_view_fsra_improved
 from .simple_fsra import make_simple_fsra_model
 from .cross_attention import CrossAttentionModel
 from .fsra_vit_improved import FSRAViTImproved
+from .fsra_original_style import create_fsra_original_style
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,8 @@ def create_model(config: Dict[str, Any]) -> nn.Module:
         return create_fsra_vit_improved_model(config)
     elif model_name.lower() == 'simple_fsra':
         return create_simple_fsra_model(config)
+    elif model_name.lower() == 'fsra_original_style':
+        return create_fsra_original_style_model(config)
     else:
         raise ValueError(f"Unsupported model type: {model_name}")
 
@@ -406,4 +409,30 @@ def create_fsra_vit_improved_model(config: Dict[str, Any]) -> nn.Module:
         use_pretrained=use_pretrained
     )
 
+    return model
+
+
+def create_fsra_original_style_model(config: Dict[str, Any]) -> nn.Module:
+    """
+    Create FSRA Original Style model based on configuration.
+
+    Args:
+        config: Configuration dictionary
+
+    Returns:
+        FSRA Original Style model
+    """
+    model_config = config['model']
+
+    num_classes = model_config['num_classes']
+    num_regions = model_config.get('num_regions', 6)
+    feature_dim = model_config.get('feature_dim', 256)
+
+    model = create_fsra_original_style(
+        num_classes=num_classes,
+        num_regions=num_regions,
+        feature_dim=feature_dim
+    )
+
+    logger.info(f"Created FSRA Original Style model with {num_classes} classes, {num_regions} regions")
     return model

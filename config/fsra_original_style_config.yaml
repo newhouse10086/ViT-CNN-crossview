@@ -1,0 +1,43 @@
+# FSRA Original Style Configuration
+# Closer to the original FSRA paper design
+
+model:
+  name: "FSRA_ORIGINAL_STYLE"
+  num_classes: 701
+  num_regions: 6
+  feature_dim: 256
+
+data:
+  data_dir: "data"
+  batch_size: 16
+  num_workers: 4
+  image_size: 256
+
+training:
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.0005
+  
+  # Loss weights (matching original FSRA)
+  classification_weight: 1.0
+  triplet_weight: 1.0
+  kl_weight: 0.1
+  alignment_weight: 0.5
+
+optimizer:
+  type: "SGD"
+  momentum: 0.9
+  nesterov: true
+  
+  # Different learning rates for different parts
+  backbone_lr_ratio: 0.1  # Backbone uses 0.1 * learning_rate
+
+scheduler:
+  type: "StepLR"
+  step_size: 30
+  gamma: 0.1
+
+system:
+  gpu_ids: "0"
+  seed: 42
+  deterministic: true

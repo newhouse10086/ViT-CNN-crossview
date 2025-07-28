@@ -118,11 +118,9 @@ class FSRAStyleLoss(nn.Module):
         # Triplet loss with batch hard mining
         self.triplet_loss = TripletLossWithBatchHard(margin=triplet_margin)
         
-        # Center loss
-        if center_weight > 0:
-            self.center_loss = CenterLoss(num_classes, feature_dim=256)  # Assume 256-dim features
-        else:
-            self.center_loss = None
+        # Center loss (will be initialized when first used)
+        self.center_loss = None
+        self.center_loss_initialized = False
             
     def forward(self, outputs: Dict, labels: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
@@ -178,7 +176,14 @@ class FSRAStyleLoss(nn.Module):
             losses['triplet_loss'] = 0.0
         
         # 3. Center Loss (optional)
-        if self.center_loss is not None and isinstance(global_features, torch.Tensor):
+        if self.center_weight > 0 and isinstance(global_features, torch.Tensor):
+            # Initialize center loss on first use
+            if not self.center_loss_initialized:
+                feature_dim = global_features.shape[1]
+                self.center_loss = CenterLoss(self.num_classes, feature_dim=feature_dim)
+                self.center_loss = self.center_loss.to(global_features.device)
+                self.center_loss_initialized = True
+
             center_loss = self.center_loss(global_features, labels)
             total_loss += self.center_weight * center_loss
             losses['center_loss'] = center_loss.item()
