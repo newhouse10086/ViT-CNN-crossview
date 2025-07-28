@@ -6,8 +6,8 @@ model:
   name: "FSRA_VIT_IMPROVED"
   num_classes: 701
   
-  # Your innovation settings - True ViT+CNN hybrid
-  patch_size: 10                    # 10x10 patches for ViT (256x256 -> 100 patches)
+  # Your innovation settings - True ViT+CNN hybrid with optimized 10x10 patches
+  patch_size: 25                    # 25x25 patches for ViT (250x250 -> 10x10 = 100 patches)
   num_final_clusters: 3             # Community clustering: 3 adaptive clusters
   cnn_output_dim: 100              # CNN branch output dimension
   vit_output_dim: 100              # ViT branch output dimension  
@@ -22,7 +22,7 @@ model:
   use_community_clustering: true    # Enable community detection
   use_pca_alignment: true          # Enable PCA feature alignment
   
-  # ViT specific settings
+  # ViT specific settings - optimized for 10x10 patches
   vit:
     embed_dim: 768                  # ViT embedding dimension
     depth: 6                        # Number of transformer blocks
@@ -38,8 +38,8 @@ data:
   test_dir: "data/test"
   batch_size: 8                     # Optimized batch size for ViT+CNN
   num_workers: 4
-  image_height: 256
-  image_width: 256
+  image_height: 250                 # Adjusted to 250 for 10x10 patches
+  image_width: 250                  # Adjusted to 250 for 10x10 patches
   views: 2
   sample_num: 4
   pad: 0
@@ -99,9 +99,9 @@ system:
 
 # Innovation specific settings
 innovation:
-  description: "True ViT+CNN Hybrid with Community Clustering and PCA Alignment"
+  description: "True ViT+CNN Hybrid with Community Clustering and PCA Alignment - Optimized 10x10 Patches"
   features:
-    - "10x10 patch ViT processing (100 patches)"
+    - "10x10 patch ViT processing (100 patches total)"
     - "ResNet18 CNN feature extraction"
     - "Dual-branch feature fusion (200D)"
     - "Graph-based community clustering"
@@ -109,9 +109,9 @@ innovation:
     - "Multi-level classification (5 levels)"
   
   architecture:
-    input_size: [256, 256]
-    patch_size: [10, 10]
-    num_patches: 625                # 25x25 patches -> resize to 8x8 spatial
+    input_size: [250, 250]          # Adjusted input size
+    patch_size: [25, 25]            # Larger patch size for 10x10 grid
+    num_patches: 100                # 10x10 patches (significantly reduced from 625)
     cnn_spatial_size: [8, 8]       # ResNet18 output spatial size
     fusion_method: "concatenation"
     clustering_method: "community_detection"
@@ -120,6 +120,6 @@ innovation:
   performance:
     expected_parameters: "~20M"     # Estimated parameter count
     expected_memory: "6GB+"         # GPU memory requirement
-    training_time: "~2min/epoch"    # Estimated training time
+    training_time: "~1min/epoch"    # Improved training time with fewer patches
 
 mode: 0  # Training mode

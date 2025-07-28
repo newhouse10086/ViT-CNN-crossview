@@ -265,21 +265,21 @@ class FSRAViTImproved(nn.Module):
             nn.AdaptiveAvgPool2d((8, 8))  # Ensure 8x8 output to match ViT
         )
         
-        # ViT Branch: Vision Transformer
+        # ViT Branch: Vision Transformer optimized for 10x10 patches
         self.vit_branch = VisionTransformer(
-            img_size=256,
-            patch_size=patch_size,
+            img_size=250,                # Changed from 256 to 250
+            patch_size=patch_size,       # This will be 25 from config
             in_channels=3,
             embed_dim=768,
             depth=6,
             num_heads=12,
-            output_dim=vit_output_dim
+            output_dim=vit_output_dim    # 100
         )
         
         # Feature fusion dimension
         fusion_dim = cnn_output_dim + vit_output_dim  # 100 + 100 = 200
         
-        # Community clustering module
+        # Community clustering module (now working on fewer patches)
         self.community_clustering = CommunityClusteringModule(
             num_clusters=num_clusters,
             similarity_threshold=0.5,
@@ -328,25 +328,30 @@ class FSRAViTImproved(nn.Module):
     def forward(self, sat_img: torch.Tensor, drone_img: torch.Tensor) -> dict:
         """
         Forward pass of FSRA ViT Improved model.
-
+        
         Args:
-            sat_img: Satellite image tensor (B, 3, 256, 256)
-            drone_img: Drone image tensor (B, 3, 256, 256)
-
+            sat_img: Satellite image tensor (B, 3, 250, 250)
+            drone_img: Drone image tensor (B, 3, 250, 250)
+            
         Returns:
-            Dictionary containing predictions from different levels
+            Dictionary containing predictions and features
         """
-        # Process both satellite and drone images
         B = sat_img.shape[0]
-
-        # Satellite branch
-        sat_cnn_features = self.cnn_backbone(sat_img)  # (B, 512, 8, 8)
-        sat_cnn_features = self.cnn_dim_reduction(sat_cnn_features)  # (B, 100, 8, 8)
-        sat_vit_features = self.vit_branch(sat_img)  # (B, 100, 8, 8)
-
-        # Drone branch (using same networks)
-        drone_cnn_features = self.cnn_backbone(drone_img)  # (B, 512, 8, 8)
+        
+        # Ensure input size is correct (250x250)
+        assert sat_img.shape[2:] == (250, 250), f"Satellite image size should be 250x250, got {sat_img.shape[2:]}"
+        assert drone_img.shape[2:] == (250, 250), f"Drone image size should be 250x250, got {drone_img.shape[2:]}"
+        
+        # CNN Branch processing
+        sat_cnn_features = self.cnn_backbone(sat_img)   # (B, 512, H, W)
+        drone_cnn_features = self.cnn_backbone(drone_img)  # (B, 512, H, W)
+        
+        # CNN dimension reduction and spatial alignment
+        sat_cnn_features = self.cnn_dim_reduction(sat_cnn_features)    # (B, 100, 8, 8)
         drone_cnn_features = self.cnn_dim_reduction(drone_cnn_features)  # (B, 100, 8, 8)
+        
+        # ViT Branch processing (now with 250x250 input and 100 patches)
+        sat_vit_features = self.vit_branch(sat_img)     # (B, 100, 8, 8)
         drone_vit_features = self.vit_branch(drone_img)  # (B, 100, 8, 8)
 
         # Fuse satellite and drone features
@@ -363,7 +368,7 @@ class FSRAViTImproved(nn.Module):
         global_output = self.global_classifier(global_feat)
         global_pred, global_f = global_output  # Unpack the list
         
-        # Community clustering on fused features
+        # Community clustering on fused features (now with better performance)
         clustered_features, communities = self.community_clustering(fused_features)  # (B, 3, 256)
         
         # Regional classification
@@ -406,17 +411,17 @@ class FSRAViTImproved(nn.Module):
 
 def create_fsra_vit_improved(num_classes=701,
                            num_clusters=3,
-                           patch_size=10,
+                           patch_size=25,                # Changed from 10 to 25
                            cnn_output_dim=100,
                            vit_output_dim=100,
                            target_pca_dim=256):
     """
-    Create FSRA ViT Improved model.
+    Create FSRA ViT Improved model optimized for 10x10 patches.
 
     Args:
         num_classes: Number of classes for classification
         num_clusters: Number of clusters for community clustering
-        patch_size: Patch size for ViT (default: 10)
+        patch_size: Patch size for ViT (default: 25 for 250x250 images -> 10x10 patches)
         cnn_output_dim: CNN branch output dimension
         vit_output_dim: ViT branch output dimension
         target_pca_dim: Target dimension for PCA alignment

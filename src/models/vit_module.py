@@ -1,6 +1,6 @@
 """
 Vision Transformer Module for FSRA_IMPROVED
-Implements patch-based ViT for 10x10 patch processing
+Implements patch-based ViT for 10x10 patch processing (optimized from 25x25)
 """
 
 import torch
@@ -14,23 +14,25 @@ class PatchEmbedding(nn.Module):
     """
     Patch embedding module for ViT.
     Divides input image into patches and embeds them.
+    Optimized for 10x10 patches (100 total) instead of 25x25 patches (625 total).
     """
     
-    def __init__(self, img_size: int = 256, patch_size: int = 10, in_channels: int = 3, embed_dim: int = 768):
+    def __init__(self, img_size: int = 250, patch_size: int = 25, in_channels: int = 3, embed_dim: int = 768):
         super().__init__()
         self.img_size = img_size
         self.patch_size = patch_size
         self.in_channels = in_channels
         self.embed_dim = embed_dim
         
-        # Calculate number of patches
-        self.num_patches = (img_size // patch_size) ** 2  # 256//10 = 25, so 25x25 = 625 patches
-        self.patch_dim = in_channels * patch_size * patch_size  # 3 * 10 * 10 = 300
+        # Calculate number of patches: 250//25 = 10, so 10x10 = 100 patches
+        self.num_patches_per_dim = img_size // patch_size  # 10
+        self.num_patches = self.num_patches_per_dim ** 2   # 100 patches
+        self.patch_dim = in_channels * patch_size * patch_size  # 3 * 25 * 25 = 1875
         
         # Linear projection of flattened patches
         self.projection = nn.Linear(self.patch_dim, embed_dim)
         
-        # Learnable position embeddings
+        # Learnable position embeddings for 100 patches
         self.position_embeddings = nn.Parameter(torch.randn(1, self.num_patches, embed_dim))
         
         # Class token (optional, for compatibility)
@@ -41,10 +43,10 @@ class PatchEmbedding(nn.Module):
         Forward pass of patch embedding.
         
         Args:
-            x: Input tensor of shape (B, C, H, W)
+            x: Input tensor of shape (B, C, H, W) where H=W=250
             
         Returns:
-            Embedded patches of shape (B, num_patches, embed_dim)
+            Embedded patches of shape (B, 100, embed_dim)
         """
         B, C, H, W = x.shape
         
@@ -57,11 +59,11 @@ class PatchEmbedding(nn.Module):
         # Shape: (B, C, num_patches_h, num_patches_w, patch_size, patch_size)
         
         # Reshape to (B, num_patches, patch_dim)
-        num_patches_h = H // self.patch_size  # 256//10 = 25
-        num_patches_w = W // self.patch_size  # 256//10 = 25
+        num_patches_h = H // self.patch_size  # 250//25 = 10
+        num_patches_w = W // self.patch_size  # 250//25 = 10
         patches = patches.contiguous().view(B, C, num_patches_h * num_patches_w, self.patch_size * self.patch_size)
         patches = patches.permute(0, 2, 1, 3).contiguous()  # (B, num_patches, C, patch_size^2)
-        patches = patches.view(B, self.num_patches, self.patch_dim)  # (B, 100, 300)
+        patches = patches.view(B, self.num_patches, self.patch_dim)  # (B, 100, 1875)
         
         # Linear projection
         embeddings = self.projection(patches)  # (B, 100, embed_dim)
@@ -160,92 +162,91 @@ class TransformerBlock(nn.Module):
 
 class VisionTransformer(nn.Module):
     """
-    Vision Transformer for patch-based image processing.
-    Designed for 10x10 patch division of 256x256 images.
+    Vision Transformer implementation optimized for 10x10 patches.
+    Processes 100 patches instead of 625 for better performance.
     """
     
     def __init__(
-        self,
-        img_size: int = 256,
-        patch_size: int = 10,
+        self, 
+        img_size: int = 250,
+        patch_size: int = 25, 
         in_channels: int = 3,
         embed_dim: int = 768,
-        depth: int = 6,  # Reduced depth for efficiency
+        depth: int = 6,
         num_heads: int = 12,
         mlp_ratio: float = 4.0,
         dropout: float = 0.1,
-        output_dim: int = 100  # Target output dimension for CNN fusion
+        output_dim: int = 100
     ):
         super().__init__()
+        
         self.img_size = img_size
         self.patch_size = patch_size
         self.embed_dim = embed_dim
+        self.depth = depth
+        self.num_heads = num_heads
         self.output_dim = output_dim
         
-        # Patch embedding
-        self.patch_embed = PatchEmbedding(img_size, patch_size, in_channels, embed_dim)
-        self.num_patches = self.patch_embed.num_patches  # 100 patches
+        # Patch embedding - converts 250x250 image to 100 patches
+        self.patch_embedding = PatchEmbedding(
+            img_size=img_size,
+            patch_size=patch_size,
+            in_channels=in_channels,
+            embed_dim=embed_dim
+        )
         
-        # Transformer blocks
-        self.blocks = nn.ModuleList([
-            TransformerBlock(embed_dim, num_heads, mlp_ratio, dropout)
-            for _ in range(depth)
-        ])
+        # Transformer encoder layers
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=embed_dim,
+            nhead=num_heads,
+            dim_feedforward=int(embed_dim * mlp_ratio),
+            dropout=dropout,
+            batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=depth)
         
         # Layer normalization
         self.norm = nn.LayerNorm(embed_dim)
         
-        # Output projection to match CNN features
-        self.output_proj = nn.Linear(embed_dim, output_dim)
+        # Output projection to match expected spatial dimensions
+        # We need to convert from (B, 100, embed_dim) to (B, output_dim, 8, 8)
+        self.spatial_projection = nn.Sequential(
+            nn.Linear(embed_dim, output_dim * 64),  # 64 = 8*8
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout)
+        )
         
-        # Initialize weights
-        self.apply(self._init_weights)
-        
-    def _init_weights(self, m):
-        """Initialize weights."""
-        if isinstance(m, nn.Linear):
-            torch.nn.init.trunc_normal_(m.weight, std=0.02)
-            if m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
-    
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of Vision Transformer.
         
         Args:
-            x: Input tensor of shape (B, 3, 256, 256)
+            x: Input tensor of shape (B, 3, 250, 250)
             
         Returns:
-            Output tensor of shape (B, output_dim, 8, 8) to match CNN scale
+            Feature tensor of shape (B, output_dim, 8, 8)
         """
-        # Patch embedding
-        x = self.patch_embed(x)  # (B, 100, embed_dim)
-        
-        # Apply transformer blocks
-        for block in self.blocks:
-            x = block(x)
-        
-        # Layer normalization
-        x = self.norm(x)  # (B, 100, embed_dim)
-        
-        # Output projection
-        x = self.output_proj(x)  # (B, 100, output_dim)
-        
-        # Reshape to spatial format: (B, num_patches, output_dim) -> (B, output_dim, H_patches, W_patches)
         B = x.shape[0]
-        x = x.permute(0, 2, 1).contiguous()  # (B, output_dim, num_patches)
-
-        # Calculate spatial dimensions
-        patches_per_side = int(self.num_patches ** 0.5)  # 25 for 625 patches
-        x = x.view(B, self.output_dim, patches_per_side, patches_per_side)  # (B, output_dim, 25, 25)
         
-        # Resize to 8x8 to match CNN spatial scale using adaptive pooling
-        x = F.adaptive_avg_pool2d(x, (8, 8))  # (B, output_dim, 8, 8)
+        # Patch embedding: (B, 3, 250, 250) -> (B, 100, embed_dim)
+        patch_embeddings = self.patch_embedding(x)
         
-        return x
+        # Transformer encoding: (B, 100, embed_dim) -> (B, 100, embed_dim)
+        encoded_features = self.transformer(patch_embeddings)
+        
+        # Normalization
+        encoded_features = self.norm(encoded_features)
+        
+        # Global average pooling across patches: (B, 100, embed_dim) -> (B, embed_dim)
+        global_features = encoded_features.mean(dim=1)
+        
+        # Spatial projection: (B, embed_dim) -> (B, output_dim * 64)
+        spatial_features = self.spatial_projection(global_features)
+        
+        # Reshape to spatial format: (B, output_dim * 64) -> (B, output_dim, 8, 8)
+        spatial_features = spatial_features.view(B, self.output_dim, 8, 8)
+        
+        return spatial_features
 
 
 def create_vit_module(config: dict) -> VisionTransformer:
