@@ -51,28 +51,23 @@ class KANLinear(nn.Module):
             self.spline_weight.data.copy_(noise[None, None, :])
             
     def b_splines(self, x: torch.Tensor) -> torch.Tensor:
-        """B样条基函数 (KAN的核心数学基础)"""
+        """B样条基函数 (KAN的核心数学基础) - 简化版本"""
         assert x.dim() == 2 and x.size(1) == self.in_features
+        batch_size, in_features = x.shape
+        
+        # 简化的B样条实现：使用RBF核近似
         grid = self.grid  # (grid_size + 1,)
-        x = x.unsqueeze(-1)  # (batch, in_features, 1)
+        x_expanded = x.unsqueeze(-1)  # (batch, in_features, 1)
+        grid_expanded = grid.view(1, 1, -1)  # (1, 1, grid_size + 1)
         
-        # 计算B样条基函数
-        bases = ((x >= grid[:-1]) & (x < grid[1:])).to(x.dtype)
+        # 使用高斯核作为B样条的近似
+        sigma = 1.0 / self.grid_size
+        distances = (x_expanded - grid_expanded) ** 2
+        bases = torch.exp(-distances / (2 * sigma ** 2))
         
-        # 线性插值
-        for k in range(1, self.grid_size + 1):
-            left = grid[:-k-1]
-            right = grid[k:]
-            delta = right - left
-            
-            # 避免除零
-            delta = torch.where(delta == 0, torch.ones_like(delta), delta)
-            
-            left_bases = bases[..., :-1] * (x[..., 0:1] - left) / delta
-            right_bases = bases[..., 1:] * (right - x[..., 0:1]) / delta
-            
-            bases = left_bases + right_bases
-            
+        # 归一化
+        bases = bases / (bases.sum(dim=-1, keepdim=True) + 1e-8)
+        
         return bases  # (batch, in_features, grid_size + 1)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -113,10 +108,18 @@ class KolmogorovArnoldAttention(nn.Module):
         """
         B, N, C = x.shape
         
+        # 将3D输入reshape为2D供KAN使用
+        x_flat = x.view(-1, C)  # (B*N, C)
+        
         # KAN-based Q, K, V computation
-        q = self.q_kan(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
-        k = self.k_kan(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
-        v = self.v_kan(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        q_flat = self.q_kan(x_flat)  # (B*N, C)
+        k_flat = self.k_kan(x_flat)  # (B*N, C)
+        v_flat = self.v_kan(x_flat)  # (B*N, C)
+        
+        # Reshape back to (B, N, C) then to attention format
+        q = q_flat.view(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        k = k_flat.view(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        v = v_flat.view(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
         
         # 注意力计算
         attn = (q @ k.transpose(-2, -1)) * self.scale
@@ -144,8 +147,10 @@ class KolmogorovArnoldAttention(nn.Module):
         # 应用注意力
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
         
-        # KAN投影
-        x = self.proj_kan(x)
+        # KAN投影 - 需要flatten再reshape
+        x_flat = x.view(-1, C)  # (B*N, C)
+        x_proj = self.proj_kan(x_flat)  # (B*N, C)
+        x = x_proj.view(B, N, C)  # (B, N, C)
         
         return x
 
